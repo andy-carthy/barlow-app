@@ -337,7 +337,7 @@ function runCoverageTests(extractedRules, loanTape, capitalStructure) {
   return results;
 }
 
-function runConcentrationTests(extractedRules, loanTape) {
+function runConcentrationTests(extractedRules, loanTape, verbose = false) {
   const results = [];
   const totalPar = loanTape.reduce((s, l) => s + l.par, 0);
 
@@ -350,6 +350,10 @@ function runConcentrationTests(extractedRules, loanTape) {
     const tape = (limit.applies_to && limit.applies_to.length > 0)
       ? loanTape.filter(l => limit.applies_to.includes(l.loan_type))
       : loanTape;
+
+    if (verbose && limit.applies_to && limit.applies_to.length > 0) {
+      console.log(`  ${C.grey}[DEBUG] ${limit.limit_id}: applying to ${tape.length}/${loanTape.length} loans (asset class filter)${C.reset}`);
+    }
 
     if (limit.dimension === 'obligor') {
       const byObligor = {};
@@ -729,7 +733,7 @@ async function main() {
   // ── STEP 4: CONCENTRATION TESTS ─────────────────────────────────────────
   section('STEP 4 — Concentration Limit Runner (deterministic)');
 
-  const concentrationResults = runConcentrationTests(extracted, LOAN_TAPE);
+  const concentrationResults = runConcentrationTests(extracted, LOAN_TAPE, verbose);
   for (const r of concentrationResults) {
     const color = r.result === 'PASS' ? C.green : C.red;
     console.log(`  ${color}${C.bold}${r.result}${C.reset}  ${r.limit_id.padEnd(20)} max ${r.max_pct}%  (${r.breach_count} breach${r.breach_count !== 1 ? 'es' : ''})`);
