@@ -79,7 +79,7 @@ Running the deterministic test engine against the synthetic loan tape with the r
 
 | Problem | Root Cause |
 |---|---|
-| SINGLE_OBLIGOR_SUBORDINATED: 36 breaches | Loan tape has no `loan_type` field. Engine applied the 1.5% subordinated limit to all loans, but this limit only applies to Permitted Debt Securities, First Lien Last Out Loans, Second Lien Loans, and Unsecured Loans. All 37 synthetic loans are senior secured — this limit does not apply. |
+| SINGLE_OBLIGOR_SUBORDINATED: 36 breaches | Loan tape had no `loan_type` field. Engine applied the 1.5% subordinated limit to all loans, but this limit only applies to Permitted Debt Securities, First Lien Last Out Loans, Second Lien Loans, and Unsecured Loans. All 37 synthetic loans are senior secured — this limit does not apply. **Fixed in Step 3: `loan_type` field added; runner now filters by `applicable_loan_types`.** |
 | MOODY_FITCH_DERIVED "breach" | Engine matched CCC-rated loans to this limit, but the limit is about *source of rating* (derived from Mdy/Fitch rather than direct S&P), not credit quality. A completely different field would be needed to evaluate this correctly. |
 | Country limits not tested | Not in schema — no `country`-dimension limit rows were produced because the excerpt was truncated |
 
@@ -139,7 +139,7 @@ The model correctly flagged every material gap. Notable:
 |---|---|---|
 | CLI validation step uses synthetic ground truth | Medium | Disable or parameterize when running real indenture |
 | Tiered limits (industry 12%/20%/17%) don't fit scalar schema | High | Schema needs `tiers` array field |
-| Test runner applies sub-debt limits to senior-secured-only tape | High | Loan tape needs `loan_type` field; runner needs to filter by dimension |
+| Test runner applies sub-debt limits to senior-secured-only tape | High | ✓ Fixed (Step 3): `loan_type` added to loan tape; runner filters by `applicable_loan_types` |
 | Country limit cluster (7 sub-limits) lost when excerpt truncates | Medium | Either pass full definitions section or handle multi-row country limits |
 | 4k token limit insufficient | Critical (now fixed) | Set max_tokens=8000 as default |
 | Cross-referenced definitions unresolvable from excerpt | Low | Provide full definitions section (Section 1.1), not just selected passages |
