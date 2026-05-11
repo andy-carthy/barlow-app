@@ -207,7 +207,13 @@ You must return ONLY valid JSON — no preamble, no explanation, no markdown fen
       "limit_id": "string — e.g. SINGLE_OBLIGOR, INDUSTRY, CCC_BUCKET, DIP",
       "description": "string — plain English description",
       "dimension": "obligor | industry | country | rating_bucket | loan_type",
-      "max_pct": number — maximum as a percentage (e.g. 3.00 not 0.03),
+      "max_pct": number — default/fallback maximum as a percentage (e.g. 12.00); always populate even when tiers is present,
+      "tiers": [
+        {
+          "rank": "string — e.g. largest | second_largest | all_others | top_3 | any rank label stated in the indenture",
+          "max_pct": number — threshold for this rank tier as a percentage
+        }
+      ],
       "applies_to": ["array of loan_type strings this limit applies to, e.g. FIRST_LIEN_LAST_OUT, SECOND_LIEN, PERMITTED_DEBT_SECURITY, UNSECURED — omit or null if the limit applies to all loan types"],
       "calculation_basis": "string — what denominator to use",
       "notes": "string — any special handling (e.g. defaulted obligations treated as CCC)",
@@ -239,7 +245,8 @@ Rules:
 2. If a threshold appears ambiguous, assign confidence MEDIUM or LOW and explain in confidence_reason.
 3. If a clause is missing or truncated, note it in extraction_summary.flags.
 4. Thresholds should be expressed as percentages: 123.50 not 1.235.
-5. Return ONLY the JSON object. Nothing else.`;
+5. Return ONLY the JSON object. Nothing else.
+6. Tiered limits: if a concentration limit specifies different thresholds by rank or count (e.g. "12% for any industry, except the largest industry may be up to 20% and the second-largest up to 17%"), populate the tiers array with one object per tier using a rank label taken directly from the indenture text. Set max_pct at the top level to the most restrictive (lowest) tier threshold as the fallback.`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HTTP HELPER — calls Anthropic API without SDK dependency
@@ -353,6 +360,10 @@ function runConcentrationTests(extractedRules, loanTape, verbose = false) {
 
     if (verbose && limit.applies_to && limit.applies_to.length > 0) {
       console.log(`  ${C.grey}[DEBUG] ${limit.limit_id}: applying to ${tape.length}/${loanTape.length} loans (asset class filter)${C.reset}`);
+    }
+
+    if (limit.tiers && limit.tiers.length > 0) {
+      console.log(`  ${C.amber}⚠${C.reset}  [WARN] Tiered limit ${limit.limit_id} detected — tier-aware evaluation not yet implemented. Falling back to scalar max_pct (${limit.max_pct}%).`);
     }
 
     if (limit.dimension === 'obligor') {
