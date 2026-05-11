@@ -224,11 +224,11 @@ Rules:
 // HTTP HELPER — calls Anthropic API without SDK dependency
 // ─────────────────────────────────────────────────────────────────────────────
 
-function callClaude(systemPrompt, userMessage) {
+function callClaude(systemPrompt, userMessage, maxTokens = 8000) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify({
       model: 'claude-sonnet-4-5',
-      max_tokens: 8000,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }]
     });
@@ -585,10 +585,12 @@ function dim(text)  { console.log(`  ${C.grey}${text}${C.reset}`); }
 
 async function main() {
   const args = process.argv.slice(2);
-  const verbose  = args.includes('--verbose');
-  const fileArg  = args.indexOf('--file');
-  const modeArg  = args.find(a => a.startsWith('--mode='));
-  const mode     = modeArg ? modeArg.split('=')[1] : 'synthetic';
+  const verbose       = args.includes('--verbose');
+  const fileArg       = args.indexOf('--file');
+  const modeArg       = args.find(a => a.startsWith('--mode='));
+  const mode          = modeArg ? modeArg.split('=')[1] : 'synthetic';
+  const maxTokensArg  = args.find(a => a.startsWith('--max-tokens='));
+  const maxTokens     = maxTokensArg ? parseInt(maxTokensArg.split('=')[1], 10) : 8000;
   const fs = require('fs');
 
   if (mode !== 'synthetic' && mode !== 'real') {
@@ -618,7 +620,7 @@ async function main() {
 
   let extracted;
   try {
-    const response = await callClaude(EXTRACTION_SYSTEM_PROMPT, indentureText);
+    const response = await callClaude(EXTRACTION_SYSTEM_PROMPT, indentureText, maxTokens);
     const rawText = response.content[0]?.text || '';
 
     if (verbose) {
@@ -630,6 +632,11 @@ async function main() {
     // Strip any accidental markdown fences
     const clean = rawText.replace(/```json\s*|```\s*/g, '').trim();
     extracted = JSON.parse(clean);
+
+    const limitCount = extracted.concentration_limits?.length || 0;
+    if (limitCount < 10) {
+      warn(`[WARN] Low concentration limit count (${limitCount}). Consider increasing --max-tokens if running a real indenture.`);
+    }
 
   } catch (e) {
     fail(`Extraction failed: ${e.message}`);
