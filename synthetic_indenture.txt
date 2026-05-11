@@ -1,0 +1,77 @@
+
+BARLOW CLO I, LTD.
+INDENTURE dated as of March 15, 2023
+
+SECTION 11.1 — OVERCOLLATERALIZATION TESTS
+
+(a) Class A/B Overcollateralization Test. On each Measurement Date, the Trustee
+shall calculate the Class A/B Overcollateralization Ratio by dividing (i) the
+Adjusted Collateral Principal Amount by (ii) the sum of the aggregate outstanding
+principal balance of the Class A Notes and the Class B Notes. The Class A/B
+Overcollateralization Ratio shall be required to be equal to or greater than
+123.50% (the "Class A/B OC Threshold"). If on any Measurement Date the Class
+A/B Overcollateralization Ratio is less than the Class A/B OC Threshold, then
+the Priority of Payments set forth in Section 13.1 shall be modified as set forth
+in Section 11.3. Cure: redirect interest proceeds to principal reinvestment
+account until the Class A/B OC Threshold is restored.
+
+(b) Class C Overcollateralization Test. On each Measurement Date, the Trustee
+shall calculate the Class C Overcollateralization Ratio by dividing (i) the
+Adjusted Collateral Principal Amount by (ii) the sum of the aggregate outstanding
+principal balance of the Class A Notes, Class B Notes, and Class C Notes. The
+Class C Overcollateralization Ratio shall be required to be equal to or greater
+than 112.75% (the "Class C OC Threshold"). If the Class C OC Threshold is not
+satisfied, interest proceeds shall be diverted as set forth in Section 13.1(c).
+
+SECTION 11.2 — INTEREST COVERAGE TEST
+
+(a) Class A/B Interest Coverage Test. On each Measurement Date, the Trustee
+shall calculate the Class A/B Interest Coverage Ratio by dividing (i) the
+Interest Proceeds received during the related Interest Accrual Period by (ii) the
+sum of (A) accrued and unpaid interest on the Class A Notes, (B) accrued and
+unpaid interest on the Class B Notes, and (C) the Senior Management Fee payable
+on the related Payment Date. The Class A/B Interest Coverage Ratio shall be
+required to be equal to or greater than 120.00% (the "Class A/B IC Threshold").
+Failure to satisfy the Interest Coverage Test shall constitute an Interest
+Coverage Test Failure and shall redirect Interest Proceeds as specified in
+Section 13.1(b).
+
+SECTION 12.2 — CONCENTRATION LIMITATIONS
+
+The following Concentration Limitations shall apply to the Collateral Obligations
+held by the Issuer as of each Measurement Date. All percentages are expressed as
+a proportion of the Adjusted Collateral Principal Amount unless otherwise specified.
+
+(a) Single Obligor Limit. The aggregate Principal Balance of Collateral
+Obligations issued by any single Obligor (together with its Affiliates) shall not
+exceed 3.00% of the Adjusted Collateral Principal Amount.
+
+(b) Single Industry Limit. The aggregate Principal Balance of Collateral
+Obligations in any single Moody's Industry Classification Group shall not exceed
+15.00% of the Adjusted Collateral Principal Amount.
+
+(c) CCC/Caa Bucket. The aggregate Principal Balance of Collateral Obligations
+rated CCC+/Caa1 or below by S&P and Moody's, respectively (using the lower of
+the two ratings), shall not exceed 7.50% of the Adjusted Collateral Principal
+Amount. For purposes of this limitation, Defaulted Obligations shall be treated
+as CCC/Caa-rated regardless of their nominal rating.
+
+(d) DIP Loan Limit. The aggregate Principal Balance of Debtor-in-Possession
+Loans shall not exceed 5.00% of the Adjusted Collateral Principal Amount.
+
+SECTION 13.1 — PRIORITY OF PAYMENTS
+
+On each Payment Date, the Trustee shall apply Interest Proceeds in the following
+order of priority (the "Interest Waterfall"):
+
+Step 1: Trustee fees and expenses (Senior Expenses), not to exceed $250,000 per annum.
+Step 2: Senior Management Fee payable to the Collateral Manager.
+Step 3: Hedge payments due to Hedge Counterparties (excluding termination payments).
+Step 4: Accrued and unpaid interest on the Class A Notes at the applicable rate.
+Step 5: Accrued and unpaid interest on the Class B Notes — provided Class A/B OC
+        Test is satisfied; otherwise redirect to Step 8.
+Step 6: Accrued and unpaid interest on the Class C Notes — provided Class C OC
+        Test is satisfied; otherwise redirect to Step 8.
+Step 7: Subordinate Management Fee payable to the Collateral Manager.
+Step 8: Reinvestment/cure — principal reinvestment account or pro rata paydown
+        of Notes in reverse order of seniority until OC tests are cured.

@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Generated run output
+barlow_output.json
+
+# Downloaded EDGAR documents (large, publicly available)
+carlyle_dl_clo_2024_1_full.txt
+
+# Claude Code session data
+.claude/
+
+# OS
+.DS_Store
