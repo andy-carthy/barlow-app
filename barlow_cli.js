@@ -208,6 +208,7 @@ You must return ONLY valid JSON — no preamble, no explanation, no markdown fen
       "description": "string — plain English description",
       "dimension": "obligor | industry | country | rating_bucket | loan_type",
       "max_pct": number — maximum as a percentage (e.g. 3.00 not 0.03),
+      "applies_to": ["array of loan_type strings this limit applies to, e.g. FIRST_LIEN_LAST_OUT, SECOND_LIEN, PERMITTED_DEBT_SECURITY, UNSECURED — omit or null if the limit applies to all loan types"],
       "calculation_basis": "string — what denominator to use",
       "notes": "string — any special handling (e.g. defaulted obligations treated as CCC)",
       "source_clause": "string — section reference",
@@ -343,10 +344,16 @@ function runConcentrationTests(extractedRules, loanTape) {
   for (const limit of extractedRules.concentration_limits) {
     let breaches = [];
 
+    // If applies_to is set, restrict the tape to matching loan types only.
+    // The denominator stays the full pool (totalPar) — limits are expressed as
+    // a % of Adjusted Collateral Principal Amount regardless of which subset they test.
+    const tape = (limit.applies_to && limit.applies_to.length > 0)
+      ? loanTape.filter(l => limit.applies_to.includes(l.loan_type))
+      : loanTape;
+
     if (limit.dimension === 'obligor') {
-      // Group by obligor
       const byObligor = {};
-      loanTape.forEach(l => { byObligor[l.obligor] = (byObligor[l.obligor] || 0) + l.par; });
+      tape.forEach(l => { byObligor[l.obligor] = (byObligor[l.obligor] || 0) + l.par; });
       Object.entries(byObligor).forEach(([obligor, par]) => {
         const pct = (par / totalPar) * 100;
         if (pct > limit.max_pct) {
@@ -356,7 +363,7 @@ function runConcentrationTests(extractedRules, loanTape) {
 
     } else if (limit.dimension === 'industry') {
       const byIndustry = {};
-      loanTape.forEach(l => { byIndustry[l.industry] = (byIndustry[l.industry] || 0) + l.par; });
+      tape.forEach(l => { byIndustry[l.industry] = (byIndustry[l.industry] || 0) + l.par; });
       Object.entries(byIndustry).forEach(([industry, par]) => {
         const pct = (par / totalPar) * 100;
         if (pct > limit.max_pct) {
@@ -367,7 +374,7 @@ function runConcentrationTests(extractedRules, loanTape) {
     } else if (limit.dimension === 'rating_bucket') {
       // CCC bucket — ratings at or below CCC+
       const cccRatings = ['CCC+', 'CCC', 'CCC-', 'CC', 'C', 'D'];
-      const cccLoans = loanTape.filter(l => cccRatings.includes(l.rating) || l.status === 'Defaulted');
+      const cccLoans = tape.filter(l => cccRatings.includes(l.rating) || l.status === 'Defaulted');
       const cccPar = cccLoans.reduce((s, l) => s + l.par, 0);
       const cccPct = (cccPar / totalPar) * 100;
       if (cccPct > limit.max_pct) {
@@ -381,7 +388,7 @@ function runConcentrationTests(extractedRules, loanTape) {
 
     } else if (limit.dimension === 'loan_type') {
       // DIP loans
-      const dipLoans = loanTape.filter(l => l.loan_type === 'DIP');
+      const dipLoans = tape.filter(l => l.loan_type === 'DIP');
       const dipPar = dipLoans.reduce((s, l) => s + l.par, 0);
       const dipPct = (dipPar / totalPar) * 100;
       if (dipPct > limit.max_pct) {
