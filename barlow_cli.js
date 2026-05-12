@@ -105,7 +105,8 @@ Step 8: Reinvestment/cure — principal reinvestment account or pro rata paydown
 //   id                string   Unique loan identifier (L001–L037)
 //   obligor           string   Borrower name (affiliates share the same name for single-obligor grouping)
 //   industry          string   Moody's Industry Classification Group name
-//   country           string   ISO country code of obligor domicile
+//   country           string   ISO country code of obligor domicile (optional; used by dimension:"country"
+//                              concentration limits via applies_to_values; absent treated as unclassified)
 //   par               number   Outstanding principal balance ($M)
 //   spread            number   Spread over SOFR (bps)
 //   rating            string   Lower of S&P / Moody's rating (e.g. 'B', 'BB', 'CCC')
@@ -215,6 +216,7 @@ You must return ONLY valid JSON — no preamble, no explanation, no markdown fen
         }
       ],
       "applies_to": ["array of loan_type strings this limit applies to, e.g. FIRST_LIEN_LAST_OUT, SECOND_LIEN, PERMITTED_DEBT_SECURITY, UNSECURED — omit or null if the limit applies to all loan types"],
+      "applies_to_values": ["for dimension:country limits — array of ISO country codes this limit governs, e.g. US, CA, GB — omit or null for limits that apply regardless of country"],
       "calculation_basis": "string — what denominator to use",
       "notes": "string — any special handling (e.g. defaulted obligations treated as CCC)",
       "source_clause": "string — section reference",
@@ -246,7 +248,8 @@ Rules:
 3. If a clause is missing or truncated, note it in extraction_summary.flags.
 4. Thresholds should be expressed as percentages: 123.50 not 1.235.
 5. Return ONLY the JSON object. Nothing else.
-6. Tiered limits: if a concentration limit specifies different thresholds by rank or count (e.g. "12% for any industry, except the largest industry may be up to 20% and the second-largest up to 17%"), populate the tiers array with one object per tier using a rank label taken directly from the indenture text. Set max_pct at the top level to the most restrictive (lowest) tier threshold as the fallback.`;
+6. Tiered limits: if a concentration limit specifies different thresholds by rank or count (e.g. "12% for any industry, except the largest industry may be up to 20% and the second-largest up to 17%"), populate the tiers array with one object per tier using a rank label taken directly from the indenture text. Set max_pct at the top level to the most restrictive (lowest) tier threshold as the fallback.
+7. Country limits: if the indenture contains geographic concentration limits (e.g. "no single non-US country may exceed 10% of ACPA"), set dimension to "country" and populate applies_to_values with the ISO country codes explicitly named, or omit applies_to_values if the limit applies to all non-domestic countries generically. Produce one limit row per distinct threshold; use tiers if ranks are stated.`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HTTP HELPER — calls Anthropic API without SDK dependency
@@ -409,6 +412,9 @@ function runConcentrationTests(extractedRules, loanTape, verbose = false) {
       if (dipPct > limit.max_pct) {
         breaches.push({ item: 'DIP loans', par_value: Math.round(dipPar * 100) / 100, pct: Math.round(dipPct * 100) / 100 });
       }
+
+    } else if (limit.dimension === 'country') {
+      console.log(`  ${C.amber}⚠${C.reset}  [WARN] Country-dimension limit detected — evaluation requires country field on loan tape. Skipping.`);
     }
 
     results.push({
