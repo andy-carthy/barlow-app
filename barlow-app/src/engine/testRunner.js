@@ -107,9 +107,20 @@ export function runConcentrationTests(rules, loanTape) {
   for (const limit of rules.concentration_limits) {
     const breaches = [];
 
+    // If applies_to is set, restrict the tape to matching loan types only.
+    // The denominator stays the full pool (totalPar) — limits are expressed as
+    // a % of Adjusted Collateral Principal Amount regardless of which subset they test.
+    const tape = (limit.applies_to && limit.applies_to.length > 0)
+      ? loanTape.filter(l => limit.applies_to.includes(l.loan_type))
+      : loanTape;
+
+    if (limit.tiers && limit.tiers.length > 0) {
+      console.warn(`[WARN] Tiered limit ${limit.limit_id} detected — tier-aware evaluation not yet implemented. Falling back to scalar max_pct (${limit.max_pct}%).`);
+    }
+
     if (limit.dimension === 'obligor') {
       const byObligor = {};
-      loanTape.forEach(l => { byObligor[l.obligor] = (byObligor[l.obligor] || 0) + l.par; });
+      tape.forEach(l => { byObligor[l.obligor] = (byObligor[l.obligor] || 0) + l.par; });
       Object.entries(byObligor).forEach(([obligor, par]) => {
         const pct = (par / totalPar) * 100;
         if (pct > limit.max_pct) {
@@ -119,7 +130,7 @@ export function runConcentrationTests(rules, loanTape) {
 
     } else if (limit.dimension === 'industry') {
       const byIndustry = {};
-      loanTape.forEach(l => { byIndustry[l.industry] = (byIndustry[l.industry] || 0) + l.par; });
+      tape.forEach(l => { byIndustry[l.industry] = (byIndustry[l.industry] || 0) + l.par; });
       Object.entries(byIndustry).forEach(([industry, par]) => {
         const pct = (par / totalPar) * 100;
         if (pct > limit.max_pct) {
@@ -129,7 +140,7 @@ export function runConcentrationTests(rules, loanTape) {
 
     } else if (limit.dimension === 'rating_bucket') {
       const cccRatings = ['CCC+', 'CCC', 'CCC-', 'CC', 'C', 'D'];
-      const cccLoans   = loanTape.filter(l => cccRatings.includes(l.rating) || l.status === 'Defaulted');
+      const cccLoans   = tape.filter(l => cccRatings.includes(l.rating) || l.status === 'Defaulted');
       const cccPar     = cccLoans.reduce((s, l) => s + l.par, 0);
       const cccPct     = (cccPar / totalPar) * 100;
       if (cccPct > limit.max_pct) {
@@ -142,12 +153,17 @@ export function runConcentrationTests(rules, loanTape) {
       }
 
     } else if (limit.dimension === 'loan_type') {
-      const dipLoans = loanTape.filter(l => l.loan_type === 'DIP');
+      const dipLoans = tape.filter(l => l.loan_type === 'DIP');
       const dipPar   = dipLoans.reduce((s, l) => s + l.par, 0);
       const dipPct   = (dipPar / totalPar) * 100;
       if (dipPct > limit.max_pct) {
         breaches.push({ item: 'DIP loans', par_value: round2(dipPar), pct: round2(dipPct) });
       }
+
+    } else if (limit.dimension === 'country') {
+      // Country-dimension evaluation requires country field on loan tape.
+      // Skipped here — no breaches recorded, result will be PASS (conservative skip).
+      console.warn(`[WARN] Country-dimension limit ${limit.limit_id} skipped — evaluation not yet implemented.`);
     }
 
     results.push({

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import IndenturUpload from './components/IndenturUpload';
+import IndenturUpload from './components/IndentureUpload';
 import RulesPanel from './components/RulesPanel';
 import LoanTapeInput from './components/LoanTapeInput';
 import TestResults from './components/TestResults';
