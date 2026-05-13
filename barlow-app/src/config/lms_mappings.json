@@ -1,0 +1,221 @@
+{
+  "_comment": "Maps canonical LoanPosition field names to known LMS column name variants. Covers Allvue, Geneva/Advent, and generic LSTA tape formats. Lookup is case-insensitive.",
+
+  "loan_id": [
+    "LoanID", "Loan ID", "Loan_ID",
+    "Facility ID", "FacilityID", "Facility Name",
+    "Asset ID", "AssetID", "InstrumentID", "Instrument ID",
+    "Position ID", "PositionID",
+    "Deal ID", "DealID",
+    "Loan Name", "CUSIP", "cusip",
+    "loan_identifier", "id"
+  ],
+
+  "obligor_name": [
+    "Borrower", "Borrower Name", "BorrowerName",
+    "Obligor", "Obligor Name", "ObligorName",
+    "Company Name", "CompanyName",
+    "Issuer", "Issuer Name", "IssuerName",
+    "Counterparty",
+    "Security Description", "Instrument Name",
+    "borrower_name", "entity_name"
+  ],
+
+  "obligor_id": [
+    "Borrower ID", "BorrowerID",
+    "Obligor ID", "ObligorID",
+    "Issuer ID", "IssuerID",
+    "Company ID", "CompanyID",
+    "Counterparty ID", "CounterpartyID",
+    "obligor_identifier", "borrower_identifier"
+  ],
+
+  "loan_type": [
+    "Loan Type", "LoanType",
+    "Asset Type", "AssetType",
+    "Security Type", "SecurityType",
+    "Instrument Type", "InstrumentType",
+    "Debt Type", "DebtType",
+    "Asset Class", "AssetClass"
+  ],
+
+  "principal_balance": [
+    "Principal Balance", "PrincipalBalance",
+    "Outstanding Balance", "OutstandingBalance",
+    "Outstanding Principal", "OutstandingPrincipal",
+    "Par Amount", "Par Value", "ParValue", "ParAmount",
+    "par_bal", "par_balance", "principal",
+    "Current Face", "CurrentFace",
+    "Outstanding Face", "OutstandingFace",
+    "Face Value", "FaceValue",
+    "Notional", "Notional Amount", "NotionalAmount",
+    "Current Balance", "CurrentBalance",
+    "Quantity"
+  ],
+
+  "purchase_price": [
+    "Purchase Price", "PurchasePrice",
+    "Cost Price", "CostPrice",
+    "Acquisition Price", "AcquisitionPrice",
+    "Average Cost", "AverageCost", "Avg Cost",
+    "Cost Basis", "CostBasis",
+    "Entry Price", "EntryPrice"
+  ],
+
+  "market_value": [
+    "Market Value", "MarketValue",
+    "Mkt Value", "MktValue",
+    "Fair Value", "FairValue",
+    "Mark", "Mark Price",
+    "Dirty Market Value", "DirtyMarketValue",
+    "Current Value", "CurrentValue"
+  ],
+
+  "spread": [
+    "Spread", "Margin",
+    "Credit Spread", "CreditSpread",
+    "Spread (bps)", "Spread(bps)", "SpreadBps", "Spread_bps",
+    "SOFR Spread", "SOFRSpread",
+    "LIBOR Spread", "LIBORSpread",
+    "All-In Spread", "AllInSpread"
+  ],
+
+  "reference_rate": [
+    "Reference Rate", "ReferenceRate",
+    "Floating Rate Index", "FloatingRateIndex",
+    "Rate Index", "RateIndex",
+    "Index", "Base Rate", "BaseRate",
+    "Floating Index", "FloatingIndex",
+    "Benchmark Rate", "BenchmarkRate"
+  ],
+
+  "coupon": [
+    "Coupon", "Coupon Rate", "CouponRate",
+    "Fixed Rate", "FixedRate",
+    "Interest Rate", "InterestRate",
+    "All-In Rate", "AllInRate",
+    "Note Rate", "NoteRate"
+  ],
+
+  "payment_frequency": [
+    "Payment Frequency", "PaymentFrequency",
+    "Pay Frequency", "PayFrequency",
+    "Pay Freq", "PayFreq",
+    "Interest Frequency", "InterestFrequency",
+    "Coupon Frequency", "CouponFrequency",
+    "Interest Payment Frequency"
+  ],
+
+  "maturity_date": [
+    "Maturity Date", "MaturityDate",
+    "Final Maturity", "FinalMaturity",
+    "Maturity",
+    "Legal Final", "LegalFinal",
+    "Legal Final Maturity", "LegalFinalMaturity",
+    "Legal Maturity", "LegalMaturity",
+    "Stated Maturity", "StatedMaturity"
+  ],
+
+  "sp_rating": [
+    "S&P Rating", "SP Rating", "SPRating",
+    "S&P", "S_P_Rating", "SnP Rating",
+    "S_P Rating", "Standard & Poor's",
+    "S&P Long Term", "SP Long Term"
+  ],
+
+  "moodys_rating": [
+    "Moody's Rating", "MoodysRating", "Moodys Rating",
+    "Moody's", "Moodys",
+    "Moody's Long Term", "MoodysLongTerm"
+  ],
+
+  "fitch_rating": [
+    "Fitch Rating", "FitchRating",
+    "Fitch", "Fitch Long Term", "FitchLongTerm"
+  ],
+
+  "rating_source": [
+    "Rating Source", "RatingSource",
+    "Rating Agency", "RatingAgency",
+    "Primary Rating Agency", "PrimaryRatingAgency"
+  ],
+
+  "country": [
+    "Country", "Country Code", "CountryCode",
+    "Country of Risk", "CountryOfRisk",
+    "Country of Domicile", "CountryOfDomicile",
+    "Obligor Country", "ObligorCountry",
+    "Domicile", "Jurisdiction",
+    "Borrower Country", "BorrowerCountry",
+    "ISO Country", "ISOCountry"
+  ],
+
+  "industry": [
+    "Industry", "Industry Classification", "IndustryClassification",
+    "Sector", "Moody's Industry", "MoodysIndustry",
+    "GICS Sector", "GICSSector",
+    "Industry Group", "IndustryGroup",
+    "Business Sector", "BusinessSector"
+  ],
+
+  "is_dip": [
+    "DIP", "Is DIP", "IsDIP",
+    "DIP Loan", "DIPLoan",
+    "Debtor in Possession", "DebtorInPossession",
+    "DIP Flag", "DIPFlag"
+  ],
+
+  "is_current_pay": [
+    "Current Pay", "IsCurrentPay", "Is Current Pay",
+    "Current Pay Flag", "CurrentPayFlag",
+    "Current Interest", "CurrentInterest"
+  ],
+
+  "is_deferrable": [
+    "Deferrable", "IsDeferrable", "Is Deferrable",
+    "PIK Toggle", "PIKToggle",
+    "PIK Flag", "PIKFlag"
+  ],
+
+  "is_partial_deferring": [
+    "Partial Deferring", "IsPartialDeferring", "Is Partial Deferring",
+    "Partial PIK", "PartialPIK",
+    "Partial Deferral", "PartialDeferral"
+  ],
+
+  "unfunded_commitment": [
+    "Unfunded Commitment", "UnfundedCommitment",
+    "Unfunded Amount", "UnfundedAmount",
+    "Unfunded", "Revolver Unfunded", "RevolverUnfunded",
+    "DD Unfunded", "DDUnfunded",
+    "Delayed Draw Unfunded", "DelayedDrawUnfunded",
+    "Undrawn Commitment", "UndrawnCommitment"
+  ],
+
+  "participation_interest": [
+    "Participation", "IsParticipation", "Is Participation",
+    "Participation Interest", "ParticipationInterest",
+    "Participation Flag", "ParticipationFlag"
+  ],
+
+  "accrued_interest": [
+    "Accrued Interest", "AccruedInterest",
+    "Accrued", "Interest Accrued", "IntAccrued",
+    "AI", "Accrued Int", "AccruedInt",
+    "Interest Receivable", "InterestReceivable"
+  ],
+
+  "last_updated": [
+    "Last Updated", "LastUpdated",
+    "As Of Date", "AsOfDate",
+    "Record Date", "RecordDate",
+    "Valuation Date", "ValuationDate",
+    "Report Date", "ReportDate"
+  ],
+
+  "source": [
+    "Source", "Data Source", "DataSource",
+    "Record Source", "RecordSource",
+    "Origin", "Feed Source", "FeedSource"
+  ]
+}
