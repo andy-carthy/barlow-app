@@ -402,6 +402,123 @@ function logTapeSummary(canonicalLoans) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// NOTICE PROCESSING — agent bank notice ingestion helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+const NOTICE_SYSTEM_PROMPT = `You are a CLO agent bank notice parser. Your job is to read LSTA-format agent bank notices and extract structured update data.
+
+You must return ONLY valid JSON — no preamble, no explanation, no markdown fences. The JSON must conform exactly to the schema below.
+
+Notice types — choose the single best match:
+  RATE_RESET         New reference rate or spread
+  PAYDOWN            Principal reduction or prepayment
+  PIK_ELECTION       Pay-in-kind interest election
+  AMENDMENT          General amendment to credit agreement terms
+  DEFAULT_NOTICE     Borrower default or event of default
+  RATING_CHANGE      Agency credit rating update
+  COMMITMENT_CHANGE  Change to revolving credit or delayed draw commitment amount
+  MATURITY_EXTENSION Extension of the loan maturity date
+  UNKNOWN            Cannot be classified into any of the above
+
+LoanPosition fields you may populate in "updates":
+  principal_balance  number ($M)     New outstanding principal
+  spread             number (bps)    New spread over reference rate
+  reference_rate     string          SOFR | LIBOR | FIXED
+  maturity_date      string          YYYY-MM-DD
+  sp_rating          string          New S&P credit rating (e.g. B, BB, CCC)
+  moodys_rating      string          New Moody's credit rating (e.g. B2, Ba2, Caa2)
+  is_current_pay     boolean         false if PIK elected, true if cash interest
+  is_deferrable      boolean         true if PIK is in effect
+  payment_frequency  string          MONTHLY | QUARTERLY | SEMI_ANNUAL | ANNUAL
+  unfunded_commitment number ($M)    New unfunded commitment amount
+  accrued_interest   number ($M)     Accrued interest at notice date
+
+Extraction rules:
+1. Extract ONLY values explicitly stated in the notice. Do not infer, estimate, or calculate.
+2. loan_ids: match loans to the provided tape using obligor name and any facility identifiers in the notice. Leave empty if no match can be made.
+3. effective_date: use YYYY-MM-DD format. Set to null (JSON null, not the string "null") if not explicitly stated; add a flag explaining why.
+4. extraction_confidence:
+     HIGH   — Complete, unambiguous, all material terms present in this notice
+     MEDIUM — Minor ambiguities or routine cross-references to standard exhibits
+     LOW    — Material information missing, undefined terms, pending data, or undefined cross-references
+5. flags: array of strings. Each flag describes a specific missing piece of information, undefined cross-reference, or material ambiguity. Empty array if none.
+6. raw_text: copy the full notice text verbatim.
+7. notice_id: generate a UUID v4.
+8. Return ONLY the JSON object. Nothing else.
+
+Required JSON schema:
+{
+  "notice_id":             "uuid-v4-string",
+  "notice_type":           "RATE_RESET | PAYDOWN | ...",
+  "effective_date":        "YYYY-MM-DD or null",
+  "loan_ids":              ["L001", ...],
+  "obligor_name":          "exactly as it appears in the notice",
+  "updates":               {},
+  "raw_text":              "full notice text verbatim",
+  "extraction_confidence": "HIGH | MEDIUM | LOW",
+  "flags":                 []
+}`;
+
+const NOTICE_LEGAL_SUFFIXES =
+  /\b(llc|lp|llp|ltd|inc|corp|co|holdings?|group|company|limited|partners?|partnership|international|intl|industries|enterprises|n\.?a\.?|trust|bank)\b/gi;
+
+function normalizeObligorCLI(name) {
+  return name
+    .toLowerCase()
+    .replace(/\bn\.a\./gi, 'na')
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()']/g, ' ')
+    .replace(NOTICE_LEGAL_SUFFIXES, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function matchNoticeCLI(update, loans) {
+  if (update.loan_ids && update.loan_ids.length > 0) {
+    const idSet = new Set(update.loan_ids);
+    return loans.filter(l => idSet.has(l.loan_id));
+  }
+  const normalizedNotice = normalizeObligorCLI(update.obligor_name || '');
+  return loans.filter(l => normalizeObligorCLI(l.obligor_name || '') === normalizedNotice);
+}
+
+function applyNoticeCLI(update, loans) {
+  const matched    = matchNoticeCLI(update, loans);
+  const matchedIds = new Set(matched.map(l => l.loan_id));
+  const changeLog  = [];
+
+  const updatedLoans = loans.map(loan => {
+    if (!matchedIds.has(loan.loan_id)) return loan;
+    const updated = { ...loan };
+    for (const [field, newValue] of Object.entries(update.updates || {})) {
+      if (newValue === undefined) continue;
+      changeLog.push({
+        loan_id:        loan.loan_id,
+        field,
+        old_value:      loan[field],
+        new_value:      newValue,
+        notice_id:      update.notice_id,
+        effective_date: update.effective_date,
+      });
+      updated[field] = newValue;
+    }
+    return updated;
+  });
+
+  return { updatedLoans, changeLog, matchCount: matched.length };
+}
+
+function buildNoticeMsgCLI(noticeText, loans) {
+  const tapeLines = loans.map(l => `  ${l.loan_id}: ${l.obligor_name}`).join('\n');
+  return `Existing loan tape (use for obligor/facility matching only — do not extract data from this):
+${tapeLines}
+
+Agent bank notice to parse:
+${'─'.repeat(60)}
+${noticeText}
+${'─'.repeat(60)}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SYSTEM PROMPT — the contract for extraction
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -864,6 +981,7 @@ async function main() {
   const maxTokens     = maxTokensArg ? parseInt(maxTokensArg.split('=')[1], 10) : 8000;
   const indentureArg  = args.find(a => a.startsWith('--indenture='));
   const loanTapeArg   = args.find(a => a.startsWith('--loan-tape='));
+  const noticeArgs    = args.filter(a => a.startsWith('--notice='));
 
   if (mode !== 'synthetic' && mode !== 'real') {
     console.error(`Unknown --mode value "${mode}". Valid values: synthetic, real`);
@@ -978,6 +1096,103 @@ async function main() {
   if (canonicalLoans) {
     section('LOAN TAPE SUMMARY');
     logTapeSummary(canonicalLoans);
+  }
+
+  // ── NOTICE PROCESSING ────────────────────────────────────────────────────
+  if (noticeArgs.length > 0) {
+    section('NOTICE PROCESSING — Agent Bank Notice Ingestion');
+
+    if (!canonicalLoans) {
+      warn('[WARN] --notice flags ignored — --loan-tape= must be set to apply notices');
+    } else {
+      const noticePaths = noticeArgs.map(a => a.split('=').slice(1).join('='));
+      const rawNotices  = [];
+
+      for (const noticePath of noticePaths) {
+        try {
+          rawNotices.push({ path: noticePath, text: fs.readFileSync(noticePath, 'utf8') });
+        } catch (e) {
+          fail(`Failed to read notice file "${noticePath}": ${e.message}`);
+          process.exit(1);
+        }
+      }
+
+      info(`Extracting ${rawNotices.length} notice${rawNotices.length !== 1 ? 's' : ''} via Claude...`);
+      console.log();
+
+      const parsedNotices = [];
+      for (const { path: noticePath, text: noticeText } of rawNotices) {
+        try {
+          const response = await callClaude(
+            NOTICE_SYSTEM_PROMPT,
+            buildNoticeMsgCLI(noticeText, canonicalLoans),
+            4000,
+          );
+          const rawText = response.content[0]?.text || '';
+          const clean   = rawText.replace(/```json\s*|```\s*/g, '').trim();
+          const parsed  = JSON.parse(clean);
+          // Always use the original text, never trust model's echo
+          parsed.raw_text = noticeText;
+          parsedNotices.push(parsed);
+          dim(`  Extracted: ${parsed.notice_type} — ${parsed.obligor_name || '(no obligor)'} — confidence ${parsed.extraction_confidence}`);
+        } catch (e) {
+          fail(`Notice extraction failed for "${noticePath}": ${e.message}`);
+          process.exit(1);
+        }
+      }
+
+      // Sort by effective_date ascending; nulls last
+      parsedNotices.sort((a, b) => {
+        if (!a.effective_date) return 1;
+        if (!b.effective_date) return -1;
+        return a.effective_date < b.effective_date ? -1 : 1;
+      });
+
+      let totalChanges   = 0;
+      const affectedIds  = new Set();
+      const allChanges   = [];
+
+      for (const notice of parsedNotices) {
+        if (notice.extraction_confidence === 'LOW') {
+          warn(`[WARN] LOW-confidence notice ${notice.notice_id} (${notice.notice_type}) — manual verification recommended`);
+        }
+        const { updatedLoans, changeLog, matchCount } = applyNoticeCLI(notice, canonicalLoans);
+        if (matchCount === 0) {
+          warn(`[ERROR] No loans matched for notice "${notice.obligor_name}" (${notice.notice_id})`);
+        } else if (matchCount > 1 && (!notice.loan_ids || notice.loan_ids.length === 0)) {
+          warn(`[WARN] Multiple loans matched for obligor "${notice.obligor_name}" — update applied to all`);
+        }
+        canonicalLoans = updatedLoans;
+        // Rebuild legacy tape so coverage tests reflect notice updates
+        activeLoanTape = canonicalLoans.map(l => ({
+          loan_id:           l.loan_id,
+          obligor_name:      l.obligor_name || l.obligor_id,
+          loan_type:         l.loan_type,
+          principal_balance: l.principal_balance,
+          spread:            l.spread,
+          sp_rating:         l.sp_rating,
+          moodys_rating:     l.moodys_rating,
+          industry:          l.industry,
+          maturity_date:     l.maturity_date,
+          is_current_pay:    l.is_current_pay,
+          is_deferrable:     l.is_deferrable,
+        }));
+        changeLog.forEach(e => affectedIds.add(e.loan_id));
+        totalChanges += changeLog.length;
+        allChanges.push(...changeLog);
+      }
+
+      console.log();
+      info(`${C.bold}${parsedNotices.length} notice${parsedNotices.length !== 1 ? 's' : ''} applied: ${totalChanges} field change${totalChanges !== 1 ? 's' : ''} across ${affectedIds.size} loan${affectedIds.size !== 1 ? 's' : ''}${C.reset}`);
+
+      if (verbose && allChanges.length > 0) {
+        console.log();
+        dim('  Change log:');
+        for (const e of allChanges) {
+          dim(`    [${e.notice_id}] ${e.loan_id}.${e.field}: ${JSON.stringify(e.old_value)} → ${JSON.stringify(e.new_value)}  (effective ${e.effective_date ?? 'unspecified'})`);
+        }
+      }
+    }
   }
 
   // ── STEP 3: COVERAGE TESTS ──────────────────────────────────────────────
