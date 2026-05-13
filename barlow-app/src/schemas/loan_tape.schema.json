@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "barlow/loan_tape",
+  "title": "Barlow Loan Tape",
+  "description": "Canonical schema for a CLO loan position in Barlow",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": [
+      "loan_id",
+      "obligor_name",
+      "obligor_id",
+      "loan_type",
+      "principal_balance",
+      "purchase_price",
+      "market_value",
+      "spread",
+      "reference_rate",
+      "payment_frequency",
+      "maturity_date"
+    ],
+    "properties": {
+      "loan_id":           { "type": "string", "minLength": 1 },
+      "obligor_name":      { "type": "string", "minLength": 1 },
+      "obligor_id":        { "type": "string", "minLength": 1 },
+      "loan_type": {
+        "type": "string",
+        "enum": ["SENIOR_SECURED", "FIRST_LIEN_LAST_OUT", "SECOND_LIEN", "PERMITTED_DEBT_SECURITY", "UNSECURED"]
+      },
+      "principal_balance": { "type": "number", "exclusiveMinimum": 0 },
+      "purchase_price":    { "type": "number", "exclusiveMinimum": 0 },
+      "market_value":      { "type": "number", "exclusiveMinimum": 0 },
+      "spread":            { "type": "number" },
+      "reference_rate": {
+        "type": "string",
+        "enum": ["SOFR", "LIBOR", "FIXED"]
+      },
+      "coupon":            { "type": "number" },
+      "payment_frequency": {
+        "type": "string",
+        "enum": ["MONTHLY", "QUARTERLY", "SEMI_ANNUAL", "ANNUAL"]
+      },
+      "maturity_date":     { "type": "string", "format": "date" },
+      "sp_rating":         { "type": "string" },
+      "moodys_rating":     { "type": "string" },
+      "fitch_rating":      { "type": "string" },
+      "rating_source": {
+        "type": "string",
+        "enum": ["SP_DIRECT", "MOODYS_DERIVED", "FITCH_DERIVED", "MOODYS_FITCH_DERIVED"]
+      },
+      "country":           { "type": "string", "pattern": "^[A-Z]{2}$" },
+      "industry":          { "type": "string" },
+      "is_dip":            { "type": "boolean" },
+      "is_current_pay":    { "type": "boolean" },
+      "is_deferrable":     { "type": "boolean" },
+      "is_partial_deferring": { "type": "boolean" },
+      "unfunded_commitment":  { "type": "number", "minimum": 0 },
+      "participation_interest": { "type": "boolean" },
+      "accrued_interest":  { "type": "number", "minimum": 0 },
+      "last_updated":      { "type": "string", "format": "date-time" },
+      "source": {
+        "type": "string",
+        "enum": ["LMS_TAPE", "AGENT_NOTICE", "MANUAL"]
+      }
+    },
+    "if": {
+      "properties": { "reference_rate": { "const": "FIXED" } },
+      "required": ["reference_rate"]
+    },
+    "then": {
+      "required": ["coupon"]
+    },
+    "additionalProperties": false
+  }
+}
