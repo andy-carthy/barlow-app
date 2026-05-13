@@ -14,6 +14,7 @@
  */
 
 const https = require('https');
+const fs    = require('fs');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SYNTHETIC INDENTURE (Appendix A from spec — ground truth for validation)
@@ -177,6 +178,228 @@ const CAPITAL_STRUCTURE = {
   class_c_interest_due: 1.60,
   senior_management_fee: 0.25,
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LMS TAPE PARSER — inline JS port of src/parsers/lms_tape_parser.ts
+// ─────────────────────────────────────────────────────────────────────────────
+
+const LMS_MAPPINGS = require('./barlow-app/src/config/lms_mappings.json');
+
+const INFERENCE_SOURCE_NAMES = new Set([
+  'lien position', 'security type', 'asset type', 'collateral type',
+  'instrument type', 'loan classification', 'asset class',
+]);
+
+const LOAN_TYPE_PATTERNS = [
+  { pattern: /first\s*lien\s*last\s*out|fllo|1st\s*lien\s*last\s*out/i, type: 'FIRST_LIEN_LAST_OUT' },
+  { pattern: /1st\s*lien|first\s*lien|senior\s*secured|tl\s*[ab]|term\s*loan\s*[ab]/i, type: 'SENIOR_SECURED' },
+  { pattern: /2nd\s*lien|second\s*lien/i, type: 'SECOND_LIEN' },
+  { pattern: /bond|senior\s*note|high\s*yield|pds|permitted\s*debt\s*security/i, type: 'PERMITTED_DEBT_SECURITY' },
+  { pattern: /unsecured/i, type: 'UNSECURED' },
+];
+
+const NUMERIC_TAPE_FIELDS = new Set([
+  'principal_balance', 'purchase_price', 'market_value', 'spread',
+  'coupon', 'unfunded_commitment', 'accrued_interest',
+]);
+
+const BOOLEAN_TAPE_FIELDS = new Set([
+  'is_dip', 'is_current_pay', 'is_deferrable', 'is_partial_deferring', 'participation_interest',
+]);
+
+function detectDelimiter(firstLine) {
+  const tabs   = (firstLine.match(/\t/g)  || []).length;
+  const commas = (firstLine.match(/,/g)   || []).length;
+  return tabs > commas ? '\t' : ',';
+}
+
+function parseDelimited(text, delimiter) {
+  const rows = [];
+  let row = [], field = '', inQuote = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i + 1];
+    if (inQuote) {
+      if (ch === '"' && next === '"') { field += '"'; i++; }
+      else if (ch === '"')            { inQuote = false; }
+      else                            { field += ch; }
+    } else {
+      if      (ch === '"')                   { inQuote = true; }
+      else if (ch === delimiter)             { row.push(field.trim()); field = ''; }
+      else if (ch === '\r' && next === '\n') { row.push(field.trim()); rows.push(row); row = []; field = ''; i++; }
+      else if (ch === '\n')                  { row.push(field.trim()); rows.push(row); row = []; field = ''; }
+      else                                   { field += ch; }
+    }
+  }
+  if (field !== '' || row.length > 0) { row.push(field.trim()); rows.push(row); }
+  while (rows.length > 0 && rows[rows.length - 1].every(c => c === '')) rows.pop();
+  return rows;
+}
+
+function buildReverseMap(mapping) {
+  const map = new Map();
+  for (const [canonical, variants] of Object.entries(mapping)) {
+    if (canonical.startsWith('_')) continue;
+    map.set(canonical.toLowerCase(), canonical);
+    for (const v of variants) map.set(v.toLowerCase(), canonical);
+  }
+  return map;
+}
+
+function coerceTapeField(canonical, rawValue) {
+  const v = rawValue.trim();
+  if (v === '') return undefined;
+  if (NUMERIC_TAPE_FIELDS.has(canonical)) {
+    const n = parseFloat(v.replace(/[,$%]/g, ''));
+    return isNaN(n) ? undefined : n;
+  }
+  if (BOOLEAN_TAPE_FIELDS.has(canonical)) return /^(true|yes|y|1)$/i.test(v);
+  if (canonical === 'reference_rate') {
+    const u = v.toUpperCase();
+    if (/SOFR/.test(u)) return 'SOFR';
+    if (/LIBOR/.test(u)) return 'LIBOR';
+    if (/FIXED|FLAT/.test(u)) return 'FIXED';
+    return u;
+  }
+  if (canonical === 'payment_frequency') {
+    const u = v.toUpperCase().replace(/[-_\s]/g, '');
+    if (u === 'M' || u === 'MONTHLY')                    return 'MONTHLY';
+    if (u === 'Q' || u === 'QUARTERLY')                  return 'QUARTERLY';
+    if (u === 'SA' || u === 'SEMIANNUAL' || u === 'SEMI') return 'SEMI_ANNUAL';
+    if (u === 'A' || u === 'ANNUAL' || u === 'ANNUALLY') return 'ANNUAL';
+    return u;
+  }
+  return v;
+}
+
+function inferLoanType(candidates) {
+  for (const { column, value } of candidates) {
+    for (const { pattern, type } of LOAN_TYPE_PATTERNS) {
+      if (pattern.test(value.trim())) return { type, sourceColumn: column };
+    }
+  }
+  return null;
+}
+
+const MOODYS_TO_SP = {
+  'Aaa': 'AAA', 'Aa1': 'AA+',  'Aa2': 'AA',   'Aa3': 'AA-',
+  'A1':  'A+',  'A2':  'A',    'A3':  'A-',
+  'Baa1':'BBB+','Baa2':'BBB',  'Baa3':'BBB-',
+  'Ba1': 'BB+', 'Ba2': 'BB',   'Ba3': 'BB-',
+  'B1':  'B+',  'B2':  'B',    'B3':  'B-',
+  'Caa1':'CCC+','Caa2':'CCC',  'Caa3':'CCC-',
+  'Ca':  'CC',  'C':   'C',    'D':   'D',
+};
+
+const RATING_RANK = {
+  'AAA': 1, 'AA+': 2,  'AA': 3,   'AA-': 4,
+  'A+':  5, 'A':   6,  'A-':  7,
+  'BBB+':8, 'BBB': 9,  'BBB-':10,
+  'BB+':11, 'BB':  12, 'BB-': 13,
+  'B+': 14, 'B':   15, 'B-':  16,
+  'CCC+':17,'CCC': 18, 'CCC-':19,
+  'CC':  20,'C':   21, 'D':   22,
+};
+
+function lowerOfRating(spRating, moodysRating) {
+  const spEquiv = spRating || null;
+  const mEquiv  = moodysRating ? (MOODYS_TO_SP[moodysRating] || null) : null;
+  if (!spEquiv && !mEquiv) return null;
+  if (!spEquiv) return mEquiv;
+  if (!mEquiv)  return spEquiv;
+  return (RATING_RANK[spEquiv] || 99) >= (RATING_RANK[mEquiv] || 99) ? spEquiv : mEquiv;
+}
+
+function canonicalToLegacy(loan) {
+  return {
+    id:               loan.loan_id,
+    obligor:          loan.obligor_name,
+    industry:         loan.industry || 'Unknown',
+    country:          loan.country  || undefined,
+    par:              loan.principal_balance,
+    spread:           loan.spread,
+    rating:           lowerOfRating(loan.sp_rating, loan.moodys_rating) || loan.sp_rating || loan.moodys_rating || '',
+    status:           loan.is_current_pay === false ? 'PIK' : 'Current',
+    accrued_interest: loan.accrued_interest || 0,
+    loan_type:        loan.loan_type,
+  };
+}
+
+function loadLoanTape(filePath) {
+  const text      = fs.readFileSync(filePath, 'utf8');
+  const firstLine = text.split(/\r?\n/)[0];
+  const delimiter = detectDelimiter(firstLine);
+  const rows      = parseDelimited(text, delimiter);
+
+  if (rows.length < 2) throw new Error(`"${filePath}" is empty or header-only`);
+
+  const reverseMap       = buildReverseMap(LMS_MAPPINGS);
+  const headers          = rows[0];
+  const columnCanonical  = [];
+  const inferenceColumns = [];
+
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i];
+    const canonical = reverseMap.get(h.toLowerCase()) || null;
+    columnCanonical.push(canonical);
+    if (!canonical) {
+      if (INFERENCE_SOURCE_NAMES.has(h.toLowerCase())) inferenceColumns.push({ index: i, name: h });
+      else warn(`Unmapped column: "${h}" — skipped`);
+    }
+  }
+
+  const canonical = [];
+  for (const rawRow of rows.slice(1)) {
+    const rec = {};
+    const inferCandidates = [];
+
+    for (let i = 0; i < headers.length; i++) {
+      const can = columnCanonical[i];
+      const raw = rawRow[i] || '';
+      if (can) {
+        const coerced = coerceTapeField(can, raw);
+        if (coerced !== undefined) rec[can] = coerced;
+      }
+      const infCol = inferenceColumns.find(c => c.index === i);
+      if (infCol && raw.trim()) inferCandidates.push({ column: infCol.name, value: raw });
+    }
+
+    if (!rec['loan_type']) {
+      const inferred = inferLoanType(inferCandidates);
+      rec['loan_type'] = inferred ? inferred.type : 'SENIOR_SECURED';
+    }
+    if (!rec['obligor_id'] && rec['obligor_name']) {
+      rec['obligor_id'] = String(rec['obligor_name']).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    }
+    if (!rec['source']) rec['source'] = 'LMS_TAPE';
+    canonical.push(rec);
+  }
+
+  return { canonical, legacy: canonical.map(canonicalToLegacy) };
+}
+
+function logTapeSummary(canonicalLoans) {
+  const totalPar = canonicalLoans.reduce((s, l) => s + (l.principal_balance || 0), 0);
+  const obligors = new Set(canonicalLoans.map(l => l.obligor_name || l.obligor_id || '')).size;
+
+  const loanTypeCounts = {};
+  for (const l of canonicalLoans) {
+    const lt = l.loan_type || 'UNKNOWN';
+    loanTypeCounts[lt] = (loanTypeCounts[lt] || 0) + 1;
+  }
+  const loanTypeStr = Object.entries(loanTypeCounts).map(([t, n]) => `${t} (${n})`).join(', ');
+
+  let spCount = 0, moodysOnlyCount = 0, unratedCount = 0;
+  for (const l of canonicalLoans) {
+    if (l.sp_rating)          spCount++;
+    else if (l.moodys_rating) moodysOnlyCount++;
+    else                      unratedCount++;
+  }
+
+  info(`Loan tape loaded: ${canonicalLoans.length} positions, $${Math.round(totalPar)}M par, ${obligors} obligor${obligors !== 1 ? 's' : ''}`);
+  info(`Loan types: ${loanTypeStr}`);
+  info(`Ratings: S&P (${spCount}), Moody's (${moodysOnlyCount}), Unrated (${unratedCount})`);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SYSTEM PROMPT — the contract for extraction
@@ -639,7 +862,8 @@ async function main() {
   const mode          = modeArg ? modeArg.split('=')[1] : 'synthetic';
   const maxTokensArg  = args.find(a => a.startsWith('--max-tokens='));
   const maxTokens     = maxTokensArg ? parseInt(maxTokensArg.split('=')[1], 10) : 8000;
-  const fs = require('fs');
+  const indentureArg  = args.find(a => a.startsWith('--indenture='));
+  const loanTapeArg   = args.find(a => a.startsWith('--loan-tape='));
 
   if (mode !== 'synthetic' && mode !== 'real') {
     console.error(`Unknown --mode value "${mode}". Valid values: synthetic, real`);
@@ -647,11 +871,29 @@ async function main() {
   }
 
   let indentureText = SYNTHETIC_INDENTURE;
-  if (fileArg !== -1 && args[fileArg + 1]) {
+  if (indentureArg) {
+    const indPath = indentureArg.split('=').slice(1).join('=');
+    indentureText = fs.readFileSync(indPath, 'utf8');
+    info(`Using indenture file: ${indPath}`);
+  } else if (fileArg !== -1 && args[fileArg + 1]) {
     indentureText = fs.readFileSync(args[fileArg + 1], 'utf8');
     info(`Using indenture file: ${args[fileArg + 1]}`);
   } else {
     info('Using built-in synthetic indenture (Barlow CLO I, Ltd.)');
+  }
+
+  let activeLoanTape = LOAN_TAPE;
+  let canonicalLoans = null;
+  if (loanTapeArg) {
+    const tapePath = loanTapeArg.split('=').slice(1).join('=');
+    try {
+      const loaded = loadLoanTape(tapePath);
+      canonicalLoans = loaded.canonical;
+      activeLoanTape = loaded.legacy;
+    } catch (e) {
+      fail(`Failed to load loan tape: ${e.message}`);
+      process.exit(1);
+    }
   }
 
   if (mode === 'real') {
@@ -732,10 +974,16 @@ async function main() {
     : `${validation.passed.length}/${total} rules correct`;
   info(`${scoreLabel}: ${scoreColor}${C.bold}${Math.round(extractionScore * 100)}% (${scoreDetail})${C.reset}`);
 
+  // ── LOAN TAPE SUMMARY ────────────────────────────────────────────────────
+  if (canonicalLoans) {
+    section('LOAN TAPE SUMMARY');
+    logTapeSummary(canonicalLoans);
+  }
+
   // ── STEP 3: COVERAGE TESTS ──────────────────────────────────────────────
   section('STEP 3 — Coverage Test Runner (deterministic)');
 
-  const testResults = runCoverageTests(extracted, LOAN_TAPE, CAPITAL_STRUCTURE);
+  const testResults = runCoverageTests(extracted, activeLoanTape, CAPITAL_STRUCTURE);
   for (const r of testResults) {
     const color = r.result === 'PASS' ? C.green : C.red;
     const cushionStr = r.cushion_pct >= 0
@@ -750,7 +998,7 @@ async function main() {
   // ── STEP 4: CONCENTRATION TESTS ─────────────────────────────────────────
   section('STEP 4 — Concentration Limit Runner (deterministic)');
 
-  const concentrationResults = runConcentrationTests(extracted, LOAN_TAPE, verbose);
+  const concentrationResults = runConcentrationTests(extracted, activeLoanTape, verbose);
   for (const r of concentrationResults) {
     const color = r.result === 'PASS' ? C.green : C.red;
     console.log(`  ${color}${C.bold}${r.result}${C.reset}  ${r.limit_id.padEnd(20)} max ${r.max_pct}%  (${r.breach_count} breach${r.breach_count !== 1 ? 'es' : ''})`);
