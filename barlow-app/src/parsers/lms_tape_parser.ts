@@ -296,7 +296,7 @@ export async function parseLMSTape(
     // Default source to LMS_TAPE
     if (!rec['source']) rec['source'] = 'LMS_TAPE';
 
-    loans.push(rec as LoanPosition);
+    loans.push(rec as unknown as LoanPosition);
   }
 
   // Emit inference summary logs
