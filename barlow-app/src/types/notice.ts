@@ -26,7 +26,7 @@ export const NOTICE_TYPES: NoticeType[] = [
 export interface NoticeUpdate {
   notice_id:             string;
   notice_type:           NoticeType;
-  effective_date:        string;
+  effective_date:        string | null;  // null when not determinable from notice text
   loan_ids:              string[];
   obligor_name:          string;
   updates:               Partial<LoanPosition>;

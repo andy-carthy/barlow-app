@@ -1,0 +1,35 @@
+AGENT BANK NOTICE
+
+Date:       March 15, 2025
+Facility:   Apex Logistics Holdings, LLC — Term Loan B
+
+RE: INTEREST RATE RESET — EFFECTIVE APRIL 1, 2025
+
+To:   All Lenders of Record
+From: First National Bank, N.A., as Administrative Agent
+
+Pursuant to Section 2.08(a) of the Credit Agreement, dated as of April 15, 2022,
+among Apex Logistics Holdings, LLC, as Borrower, the lenders party thereto, and
+First National Bank, N.A., as Administrative Agent (the "Credit Agreement"), the
+Administrative Agent hereby provides notice of the following interest rate adjustment:
+
+  Effective Date:         April 1, 2025
+  Reference Rate:         SOFR (Term SOFR, 3-month)
+  New Applicable Spread:  450 basis points
+  Previous Spread:        425 basis points
+
+This adjustment applies to the following facility:
+
+  Facility:               Term Loan B
+  Loan IDs:               L001, L002
+  Outstanding Principal:  $14,500,000 ($8,000,000 + $6,500,000)
+
+The new all-in rate shall be SOFR + 450 bps as of the Effective Date. Interest
+shall continue to accrue and be paid on a quarterly basis in accordance with
+Section 2.07 of the Credit Agreement. All other terms and conditions remain
+unchanged.
+
+Please direct operational questions to the Agent's Loan Operations desk.
+
+First National Bank, N.A.
+Administrative Agent

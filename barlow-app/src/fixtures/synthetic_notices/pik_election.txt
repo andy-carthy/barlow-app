@@ -1,0 +1,35 @@
+AGENT BANK NOTICE
+
+Date:       January 10, 2025
+Facility:   Delta Energy Holdings, Ltd. — First Lien Term Loan
+
+RE: PIK INTEREST ELECTION — INTEREST PERIOD ENDING MARCH 31, 2025
+
+To:   All Lenders of Record
+From: Cascade Bank, as Administrative Agent
+
+Pursuant to Section 4.02(b) of the Credit Agreement, dated as of September 30,
+2021, among Delta Energy Holdings, Ltd., as Borrower, the lenders party thereto,
+and Cascade Bank, as Administrative Agent, the Administrative Agent has received
+proper notice of a PIK (pay-in-kind) interest election from Delta Energy Holdings,
+Ltd., as follows:
+
+  Loan ID:              L005
+  PIK Interest Period:  January 1, 2025 through March 31, 2025
+  Election Type:        Full PIK — interest to be capitalized, not paid in cash
+
+Interest otherwise payable in cash during the PIK Interest Period shall be
+capitalized and added to the outstanding principal balance of the Term Loan on
+the last day of the PIK Interest Period (March 31, 2025), in accordance with
+Section 4.02(b) of the Credit Agreement.
+
+This election is permitted once per fiscal year under the terms of the Credit
+Agreement. Cash interest payments shall resume for the interest period beginning
+April 1, 2025, unless Delta Energy Holdings, Ltd. delivers a further PIK election
+notice pursuant to Section 4.02(b).
+
+Lenders should update their records to reflect this PIK election for Loan ID L005
+for the period January 1, 2025 through March 31, 2025.
+
+Cascade Bank
+Administrative Agent
