@@ -564,13 +564,29 @@ You must return ONLY valid JSON — no preamble, no explanation, no markdown fen
       "confidence_reason": "string"
     }
   ],
-  "waterfall": [
+  "waterfall_steps": [
     {
-      "step": number,
-      "payee_type": "fees | hedge | note_interest | note_principal | reinvestment | subordinate_fees",
-      "payee": "string — plain English name",
-      "conditions": "string | null — any conditions on this payment (e.g. OC test must be passing)",
-      "source_clause": "string"
+      "step_id": "string — e.g. STEP_04_CLASS_A_INTEREST, STEP_05_OC_AB_CHECK",
+      "step_number": number,
+      "step_type": "FEE | INTEREST_PAYMENT | COVERAGE_TEST_CHECK | DIVERSION | PRINCIPAL_PAYMENT | REINVESTMENT | EQUITY_DISTRIBUTION | RESERVE_ACCOUNT_FUNDING",
+      "label": "string — plain English label from indenture",
+      "indenture_section": "string",
+      "beneficiary": "string or omit",
+      "payment_type": "INTEREST | PRINCIPAL | FEE | EQUITY_DISTRIBUTION or omit",
+      "note_class": "CLASS_A | CLASS_B | CLASS_C | CLASS_D | CLASS_E | EQUITY or omit",
+      "amount_basis": "ACCRUED_INTEREST | PRO_RATA | REMAINING_PROCEEDS | FIXED | LESSER_OF_ACCRUED_AND_AVAILABLE or omit",
+      "condition": {
+        "test_type": "OC | IC | COMBINED | NONE",
+        "note_classes_tested": ["CLASS_A", "CLASS_B"],
+        "operator": "ALL_PASS | ANY_PASS"
+      },
+      "condition_raw": "string — exact prose from indenture or omit",
+      "diverts_to": {
+        "step_type": "REINVESTMENT | REDEMPTION | RESERVE",
+        "note_class_priority": [],
+        "description": "string"
+      },
+      "cure_mechanism": "REINVESTMENT | REDEMPTION | TRAP or omit"
     }
   ],
   "extraction_summary": {
@@ -582,14 +598,53 @@ You must return ONLY valid JSON — no preamble, no explanation, no markdown fen
   }
 }
 
-Rules:
-1. Extract only what is explicitly stated in the text. Do not infer or assume.
+Waterfall step rules:
+  step_type assignment:
+    FEE               — trustee fees, management fees, hedge payments, expenses
+    INTEREST_PAYMENT  — unconditional note interest payment (no OC/IC gate)
+    COVERAGE_TEST_CHECK — conditional payment gated by an OC or IC test; populate condition AND diverts_to
+    REINVESTMENT      — principal reinvestment / cure step (target of diversions)
+    PRINCIPAL_PAYMENT — scheduled principal distribution
+    EQUITY_DISTRIBUTION — residual distributions to equity / income notes
+
+  For COVERAGE_TEST_CHECK steps:
+    - condition.test_type: OC for overcollateralization, IC for interest coverage
+    - condition.note_classes_tested: all classes in the ratio denominator (e.g. A/B OC → ["CLASS_A","CLASS_B"])
+    - note_class: populate if this step pays interest when the test passes
+    - diverts_to: required — where cash goes on failure
+
+  step_id format: STEP_{number:02d}_{LABEL}  e.g. STEP_05_OC_AB_CHECK
+  note_class: CLASS_A | CLASS_B | CLASS_C | CLASS_D (not "A", "Class A")
+
+  FEW-SHOT EXAMPLE — conditional interest payment with OC check:
+  Indenture text: "Step 5: Accrued and unpaid interest on the Class B Notes — provided the
+  Class A/B OC Ratio is at or above 123.50%; otherwise redirect to the reinvestment account."
+
+  Correct extraction:
+  {
+    "step_id": "STEP_05_OC_AB_CHECK",
+    "step_number": 5,
+    "step_type": "COVERAGE_TEST_CHECK",
+    "label": "Accrued and unpaid interest on the Class B Notes",
+    "indenture_section": "Section 13.1, Step 5",
+    "beneficiary": "Class B Noteholders",
+    "payment_type": "INTEREST",
+    "note_class": "CLASS_B",
+    "amount_basis": "ACCRUED_INTEREST",
+    "condition": { "test_type": "OC", "note_classes_tested": ["CLASS_A","CLASS_B"], "operator": "ALL_PASS" },
+    "condition_raw": "provided Class A/B OC Ratio is at or above 123.50%; otherwise redirect to reinvestment account",
+    "diverts_to": { "step_type": "REINVESTMENT", "note_class_priority": [], "description": "Redirect to principal reinvestment account until OC threshold restored" },
+    "cure_mechanism": "REINVESTMENT"
+  }
+
+General rules:
+1. Extract only what is explicitly stated. Do not infer or assume.
 2. If a threshold appears ambiguous, assign confidence MEDIUM or LOW and explain in confidence_reason.
 3. If a clause is missing or truncated, note it in extraction_summary.flags.
-4. Thresholds should be expressed as percentages: 123.50 not 1.235.
+4. Thresholds as percentages: 123.50 not 1.235.
 5. Return ONLY the JSON object. Nothing else.
-6. Tiered limits: if a concentration limit specifies different thresholds by rank or count (e.g. "12% for any industry, except the largest industry may be up to 20% and the second-largest up to 17%"), populate the tiers array with one object per tier using a rank label taken directly from the indenture text. Set max_pct at the top level to the most restrictive (lowest) tier threshold as the fallback.
-7. Country limits: if the indenture contains geographic concentration limits (e.g. "no single non-US country may exceed 10% of ACPA"), set dimension to "country" and populate applies_to_values with the ISO country codes explicitly named, or omit applies_to_values if the limit applies to all non-domestic countries generically. Produce one limit row per distinct threshold; use tiers if ranks are stated.`;
+6. Tiered limits: populate tiers array; set max_pct to the most restrictive tier as fallback.
+7. Country limits: dimension="country", populate applies_to_values with ISO codes.`;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HTTP HELPER — calls Anthropic API without SDK dependency
@@ -874,7 +929,9 @@ function validateStructure(extracted) {
 
   const tests     = extracted.coverage_tests      || [];
   const limits    = extracted.concentration_limits || [];
-  const waterfall = extracted.waterfall            || [];
+  // Accept v2 waterfall_steps or legacy waterfall field
+  const waterfall = extracted.waterfall_steps || extracted.waterfall || [];
+  const isV2      = !!extracted.waterfall_steps;
 
   // ── Array presence ────────────────────────────────────────────────────────
   if (tests.length === 0) {
@@ -890,9 +947,46 @@ function validateStructure(extracted) {
   }
 
   if (waterfall.length === 0) {
-    report.failed.push('waterfall: no steps extracted');
+    report.failed.push('waterfall_steps: no steps extracted');
   } else {
-    report.passed.push(`waterfall: ${waterfall.length} step(s) present`);
+    const fieldLabel = isV2 ? 'waterfall_steps (v2)' : 'waterfall (legacy)';
+    report.passed.push(`${fieldLabel}: ${waterfall.length} step(s) present`);
+    if (!isV2) {
+      report.warnings.push('waterfall: legacy schema detected — diversion engine requires waterfall_steps (v2)');
+    }
+  }
+
+  // ── Waterfall step v2 field checks ────────────────────────────────────────
+  if (isV2) {
+    const VALID_STEP_TYPES = new Set(['FEE','INTEREST_PAYMENT','COVERAGE_TEST_CHECK','DIVERSION',
+      'PRINCIPAL_PAYMENT','REINVESTMENT','EQUITY_DISTRIBUTION','RESERVE_ACCOUNT_FUNDING']);
+    let stepFieldErrors = 0;
+    let checkStepsOk    = 0;
+    let checkStepsMissingFields = 0;
+    waterfall.forEach((step, i) => {
+      const lbl = step.step_id || `step[${i}]`;
+      if (!step.step_id)                             { report.failed.push(`${lbl}: missing step_id`); stepFieldErrors++; }
+      if (typeof step.step_number !== 'number')      { report.failed.push(`${lbl}: step_number not a number`); stepFieldErrors++; }
+      if (!VALID_STEP_TYPES.has(step.step_type))     { report.warnings.push(`${lbl}: unrecognised step_type "${step.step_type}"`); }
+      if (!step.label)                               { report.warnings.push(`${lbl}: missing label`); }
+      if (step.step_type === 'COVERAGE_TEST_CHECK') {
+        if (!step.condition || !step.diverts_to) {
+          report.warnings.push(`${lbl}: COVERAGE_TEST_CHECK missing condition or diverts_to`);
+          checkStepsMissingFields++;
+        } else {
+          checkStepsOk++;
+        }
+      }
+    });
+    if (waterfall.length > 0 && stepFieldErrors === 0)
+      report.passed.push(`waterfall_steps fields: all ${waterfall.length} have valid step_id, step_number, step_type`);
+    const checkTotal = checkStepsOk + checkStepsMissingFields;
+    if (checkTotal > 0) {
+      if (checkStepsMissingFields === 0)
+        report.passed.push(`COVERAGE_TEST_CHECK steps: all ${checkStepsOk} have condition + diverts_to`);
+      else
+        report.warnings.push(`COVERAGE_TEST_CHECK steps: ${checkStepsMissingFields}/${checkTotal} missing condition or diverts_to`);
+    }
   }
 
   // ── Coverage test field checks ────────────────────────────────────────────
@@ -940,6 +1034,676 @@ function validateStructure(extracted) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PHASE 4A — WATERFALL DIVERSION ENGINE
+// Port of src/engines/waterfall_diversion_engine.ts.
+// Do not modify logic here without a matching change to the TypeScript source.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Extends CAPITAL_STRUCTURE with per-step fee amounts required by the waterfall engine.
+const WATERFALL_CAPITAL_STRUCTURE = {
+  ...CAPITAL_STRUCTURE,
+  trustee_fee:                0.25,
+  hedge_payments:             0.00,
+  subordinate_management_fee: 0.20,
+};
+
+function r2(n) { return Math.round(n * 100) / 100; }
+
+function noteClassesToSuffix(noteClasses) {
+  const order = { A: 1, B: 2, C: 3, D: 4, E: 5 };
+  const letters = noteClasses
+    .map(c => c.replace('CLASS_', ''))
+    .filter(l => order[l] !== undefined)
+    .sort((a, b) => order[a] - order[b]);
+  if (letters.length === 0) return null;
+  if (letters.join('') === 'AB') return 'AB';
+  return letters[letters.length - 1];
+}
+
+function resolveTestResult(condition, testIndex) {
+  const suffix = noteClassesToSuffix(condition.note_classes_tested || []);
+  if (!suffix) return { result: null, testId: null };
+  const prefix     = condition.test_type === 'OC' ? 'OC_CLASS_' : 'IC_CLASS_';
+  const expectedId = `${prefix}${suffix}`;
+  const direct     = testIndex.get(expectedId);
+  if (direct) return { result: direct, testId: expectedId };
+  const typeStr = condition.test_type === 'OC' ? 'overcollateralization' : 'interest_coverage';
+  for (const [id, r] of testIndex) {
+    if (r.test_type === typeStr && id.includes(suffix)) return { result: r, testId: id };
+  }
+  return { result: null, testId: null };
+}
+
+function evaluateCondition(condition, testIndex) {
+  if (!condition || condition.test_type === 'NONE') return { passed: true, failingTestId: null };
+
+  // COMBINED: both OC and IC tests for the relevant classes must pass.
+  // Carlyle-style: "if either of the Class A/B Coverage Tests is not satisfied".
+  if (condition.test_type === 'COMBINED') {
+    const suffix = noteClassesToSuffix(condition.note_classes_tested || []);
+    if (suffix) {
+      for (const prefix of ['OC_CLASS_', 'IC_CLASS_']) {
+        const id = `${prefix}${suffix}`;
+        const r  = testIndex.get(id);
+        if (r && r.result === 'FAIL') return { passed: false, failingTestId: id };
+      }
+    }
+    return { passed: true, failingTestId: null };
+  }
+
+  const { result, testId } = resolveTestResult(condition, testIndex);
+  if (!result) return { passed: true, failingTestId: null };
+  if (condition.operator === 'ALL_PASS') {
+    return result.result === 'FAIL'
+      ? { passed: false, failingTestId: testId }
+      : { passed: true,  failingTestId: null };
+  }
+  return result.result === 'PASS'
+    ? { passed: true,  failingTestId: null }
+    : { passed: false, failingTestId: testId };
+}
+
+function resolveWaterfallPayment(step, capital, remaining) {
+  if (step.amount_basis === 'REMAINING_PROCEEDS') return remaining;
+  if (step.step_type === 'FEE') {
+    const id = step.step_id.toUpperCase();
+    if (id.includes('TRUSTEE'))                                  return capital.trustee_fee;
+    if (id.includes('SR_MGMT') || id.includes('SENIOR_MGMT'))   return capital.senior_management_fee;
+    if (id.includes('HEDGE'))                                    return capital.hedge_payments ?? 0;
+    if (id.includes('SUB_MGMT') || id.includes('SUBORDINATE'))  return capital.subordinate_management_fee ?? 0;
+    return 0;
+  }
+  if (step.step_type === 'INTEREST_PAYMENT' && step.note_class) {
+    return resolveNoteInterest(step.note_class, capital);
+  }
+  return 0;
+}
+
+function resolveNoteInterest(noteClass, capital) {
+  switch (noteClass) {
+    case 'CLASS_A': return capital.class_a_interest_due;
+    case 'CLASS_B': return capital.class_b_interest_due ?? 0;
+    case 'CLASS_C': return capital.class_c_interest_due ?? 0;
+    case 'CLASS_D': return capital.class_d_interest_due ?? 0;
+    default:        return 0;
+  }
+}
+
+function runWaterfallDiversion({ payment_date, period_start, period_end,
+    waterfall_steps, coverage_test_results, available_interest_proceeds, capital_structure }) {
+
+  const testIndex = new Map(coverage_test_results.map(r => [r.test_id, r]));
+  const sorted    = [...waterfall_steps].sort((a, b) => a.step_number - b.step_number);
+
+  let remaining        = available_interest_proceeds;
+  let totalDiverted    = 0;
+  let totalDistributed = 0;
+  const entries        = [];
+  const blocked        = new Set();
+
+  for (let i = 0; i < sorted.length; i++) {
+    const step = sorted[i];
+    if (blocked.has(step.step_id))       continue;
+    if (step.step_type === 'REINVESTMENT') continue;
+
+    if (step.step_type === 'FEE' || step.step_type === 'INTEREST_PAYMENT') {
+      const amt  = resolveWaterfallPayment(step, capital_structure, remaining);
+      const paid = r2(Math.min(amt, remaining));
+      remaining        = r2(remaining - paid);
+      totalDistributed = r2(totalDistributed + paid);
+      continue;
+    }
+
+    if (step.step_type === 'COVERAGE_TEST_CHECK') {
+      const { passed, failingTestId } = evaluateCondition(step.condition, testIndex);
+      if (passed) {
+        if (step.note_class) {
+          const amt  = resolveNoteInterest(step.note_class, capital_structure);
+          const paid = r2(Math.min(amt, remaining));
+          remaining        = r2(remaining - paid);
+          totalDistributed = r2(totalDistributed + paid);
+        }
+      } else {
+        const before   = remaining;
+        const diverted = remaining;
+        remaining      = 0;
+        totalDiverted  = r2(totalDiverted + diverted);
+        const target   = step.diverts_to || { step_type: 'REINVESTMENT', note_class_priority: [], description: 'Principal reinvestment/cure' };
+        entries.push({
+          step_id:           step.step_id,
+          step_number:       step.step_number,
+          triggering_test:   failingTestId || (step.condition && step.condition.test_type) || 'UNKNOWN',
+          test_result:       'FAIL',
+          diversion_amount:  r2(diverted),
+          diversion_target:  target,
+          cure_mechanism:    step.cure_mechanism || 'REINVESTMENT',
+          proceeds_before:   r2(before),
+          proceeds_after:    0,
+          indenture_section: step.indenture_section,
+        });
+        for (let j = i + 1; j < sorted.length; j++) {
+          if (sorted[j].step_type !== 'REINVESTMENT') blocked.add(sorted[j].step_id);
+        }
+        break;
+      }
+    }
+  }
+
+  return {
+    payment_date,
+    period_start,
+    period_end,
+    total_interest_proceeds: r2(available_interest_proceeds),
+    total_diverted:          r2(totalDiverted),
+    total_distributed:       r2(totalDistributed),
+    entries,
+    blocked_steps: [...blocked],
+  };
+}
+
+// ── Phase 4B — Full Waterfall Allocation Engine ───────────────────────────────
+
+function resolveFeeAmount4B(step, nb) {
+  const id = step.step_id.toUpperCase();
+  const { fees } = nb;
+  if (id.includes('TRUSTEE') || id.includes('ADMIN'))         return fees.trustee_and_admin;
+  if (id.includes('SR_MGMT') || id.includes('SENIOR_MGMT'))  return fees.senior_management_fee;
+  if (id.includes('SUB_MGMT') || id.includes('SUBORDINATE')) return fees.subordinate_management_fee;
+  if (id.includes('HEDGE'))                                   return fees.hedge_termination ?? 0;
+  return 0;
+}
+
+function resolveNoteBalance4B(noteClass, nb) {
+  const map = { CLASS_A: 'class_a', CLASS_B: 'class_b', CLASS_C: 'class_c', CLASS_D: 'class_d', CLASS_E: 'class_e' };
+  const key = map[noteClass];
+  return key ? (nb[key] ?? null) : null;
+}
+
+function resolveInterestDue4B(step, nb) {
+  if (!step.note_class) return 0;
+  const bal = resolveNoteBalance4B(step.note_class, nb);
+  if (!bal) return 0;
+  return r2(bal.accrued_interest + (bal.deferred_interest ?? 0));
+}
+
+function inferAmountDue4B(step, nb) {
+  if (step.step_type === 'FEE')                                              return resolveFeeAmount4B(step, nb);
+  if (step.step_type === 'INTEREST_PAYMENT')                                 return resolveInterestDue4B(step, nb);
+  if (step.step_type === 'COVERAGE_TEST_CHECK' && step.note_class)           return resolveInterestDue4B(step, nb);
+  return 0;
+}
+
+function runWaterfall4B({ waterfall_steps, coverage_test_results, collections, note_balances }) {
+  const testIndex = new Map(coverage_test_results.map(r => [r.test_id, r]));
+  const sorted    = [...waterfall_steps].sort((a, b) => a.step_number - b.step_number);
+
+  let interest_bucket  = r2(collections.total_interest_proceeds + collections.hedge_receipts);
+  let principal_bucket = r2(collections.total_principal_proceeds);
+  let total_allocated  = 0;
+  const entries    = [];
+  const diversions = [];
+  const blockedIds = new Set();
+
+  for (let i = 0; i < sorted.length; i++) {
+    const step = sorted[i];
+
+    if (step.step_type === 'REINVESTMENT') continue;
+
+    if (blockedIds.has(step.step_id)) {
+      const due = inferAmountDue4B(step, note_balances);
+      entries.push({
+        step_id: step.step_id, step_number: step.step_number, step_type: step.step_type,
+        beneficiary: step.beneficiary ?? '', note_class: step.note_class,
+        payment_type: step.payment_type ?? 'INTEREST',
+        amount_due: due, amount_paid: 0, shortfall: due,
+        proceeds_bucket_before: 0, proceeds_bucket_after: 0,
+        blocked: true, indenture_section: step.indenture_section,
+      });
+      continue;
+    }
+
+    if (step.step_type === 'FEE') {
+      const due = resolveFeeAmount4B(step, note_balances);
+      const paid = r2(Math.min(due, interest_bucket));
+      const bef = interest_bucket;
+      interest_bucket = r2(interest_bucket - paid);
+      total_allocated = r2(total_allocated + paid);
+      entries.push({ step_id: step.step_id, step_number: step.step_number, step_type: 'FEE',
+        beneficiary: step.beneficiary ?? '', payment_type: 'FEE',
+        amount_due: due, amount_paid: paid, shortfall: r2(due - paid),
+        proceeds_bucket_before: bef, proceeds_bucket_after: interest_bucket,
+        blocked: false, indenture_section: step.indenture_section });
+      continue;
+    }
+
+    if (step.step_type === 'INTEREST_PAYMENT') {
+      const due = resolveInterestDue4B(step, note_balances);
+      const paid = r2(Math.min(due, interest_bucket));
+      const bef = interest_bucket;
+      interest_bucket = r2(interest_bucket - paid);
+      total_allocated = r2(total_allocated + paid);
+      entries.push({ step_id: step.step_id, step_number: step.step_number, step_type: 'INTEREST_PAYMENT',
+        beneficiary: step.beneficiary ?? '', note_class: step.note_class, payment_type: 'INTEREST',
+        amount_due: due, amount_paid: paid, shortfall: r2(due - paid),
+        proceeds_bucket_before: bef, proceeds_bucket_after: interest_bucket,
+        blocked: false, indenture_section: step.indenture_section });
+      continue;
+    }
+
+    if (step.step_type === 'COVERAGE_TEST_CHECK') {
+      const { passed, failingTestId } = evaluateCondition(step.condition, testIndex);
+
+      if (passed) {
+        if (step.note_class) {
+          const due = resolveInterestDue4B(step, note_balances);
+          const paid = r2(Math.min(due, interest_bucket));
+          const bef = interest_bucket;
+          interest_bucket = r2(interest_bucket - paid);
+          total_allocated = r2(total_allocated + paid);
+          entries.push({ step_id: step.step_id, step_number: step.step_number, step_type: 'COVERAGE_TEST_CHECK',
+            beneficiary: step.beneficiary ?? '', note_class: step.note_class, payment_type: 'INTEREST',
+            amount_due: due, amount_paid: paid, shortfall: r2(due - paid),
+            proceeds_bucket_before: bef, proceeds_bucket_after: interest_bucket,
+            blocked: false, indenture_section: step.indenture_section });
+        }
+        continue;
+      }
+
+      // Diversion fires — transfer all remaining interest to the principal bucket.
+      const divAmount = interest_bucket;
+      const bef = interest_bucket;
+      interest_bucket  = 0;
+      principal_bucket = r2(principal_bucket + divAmount);
+
+      diversions.push({
+        step_id: step.step_id, step_number: step.step_number,
+        triggering_test: failingTestId ?? (step.condition && step.condition.test_type) ?? 'UNKNOWN',
+        test_result: 'FAIL', diversion_amount: r2(divAmount),
+        diversion_target: step.diverts_to ?? { step_type: 'REINVESTMENT', note_class_priority: [], description: 'Principal reinvestment/cure' },
+        cure_mechanism: step.cure_mechanism ?? 'REINVESTMENT',
+        proceeds_before: r2(bef), proceeds_after: 0,
+        indenture_section: step.indenture_section,
+      });
+
+      if (step.note_class) {
+        const due = resolveInterestDue4B(step, note_balances);
+        entries.push({ step_id: step.step_id, step_number: step.step_number, step_type: 'COVERAGE_TEST_CHECK',
+          beneficiary: step.beneficiary ?? '', note_class: step.note_class, payment_type: 'INTEREST',
+          amount_due: due, amount_paid: 0, shortfall: due,
+          proceeds_bucket_before: bef, proceeds_bucket_after: 0,
+          blocked: false, indenture_section: step.indenture_section });
+      }
+
+      for (let j = i + 1; j < sorted.length; j++) {
+        if (sorted[j].step_type !== 'REINVESTMENT') blockedIds.add(sorted[j].step_id);
+      }
+      continue;
+    }
+
+    if (step.step_type === 'PRINCIPAL_PAYMENT') {
+      const due = principal_bucket;
+      const paid = r2(Math.min(due, principal_bucket));
+      const bef = principal_bucket;
+      principal_bucket = r2(principal_bucket - paid);
+      total_allocated  = r2(total_allocated + paid);
+      entries.push({ step_id: step.step_id, step_number: step.step_number, step_type: 'PRINCIPAL_PAYMENT',
+        beneficiary: step.beneficiary ?? '', note_class: step.note_class, payment_type: 'PRINCIPAL',
+        amount_due: due, amount_paid: paid, shortfall: 0,
+        proceeds_bucket_before: bef, proceeds_bucket_after: principal_bucket,
+        blocked: false, indenture_section: step.indenture_section });
+      continue;
+    }
+
+    if (step.step_type === 'RESERVE_ACCOUNT_FUNDING') {
+      const due = principal_bucket;
+      const paid = r2(Math.min(due, principal_bucket));
+      const bef = principal_bucket;
+      principal_bucket = r2(principal_bucket - paid);
+      total_allocated  = r2(total_allocated + paid);
+      entries.push({ step_id: step.step_id, step_number: step.step_number, step_type: 'RESERVE_ACCOUNT_FUNDING',
+        beneficiary: step.beneficiary ?? 'Reserve Account', payment_type: 'PRINCIPAL',
+        amount_due: due, amount_paid: paid, shortfall: 0,
+        proceeds_bucket_before: bef, proceeds_bucket_after: principal_bucket,
+        blocked: false, indenture_section: step.indenture_section });
+      continue;
+    }
+
+    if (step.step_type === 'EQUITY_DISTRIBUTION') {
+      const combined = r2(interest_bucket + principal_bucket);
+      interest_bucket  = 0;
+      principal_bucket = 0;
+      total_allocated  = r2(total_allocated + combined);
+      entries.push({ step_id: step.step_id, step_number: step.step_number, step_type: 'EQUITY_DISTRIBUTION',
+        beneficiary: step.beneficiary ?? 'Preferred Interest Holders', payment_type: 'EQUITY_DISTRIBUTION',
+        amount_due: combined, amount_paid: combined, shortfall: 0,
+        proceeds_bucket_before: combined, proceeds_bucket_after: 0,
+        blocked: false, indenture_section: step.indenture_section });
+      continue;
+    }
+  }
+
+  return {
+    payment_date:       collections.payment_date,
+    period_start:       collections.period_start,
+    period_end:         collections.period_end,
+    collections,
+    total_allocated:    r2(total_allocated),
+    residual_interest:  r2(interest_bucket),
+    residual_principal: r2(principal_bucket),
+    entries,
+    diversions,
+  };
+}
+
+// Build NoteBalanceSnapshot from the legacy capital structure (real-mode fallback).
+function noteBalancesFromCapital(capital) {
+  const nb = {
+    payment_date: new Date().toISOString().slice(0, 10),
+    class_a: { outstanding_balance: 0, accrued_interest: capital.class_a_interest_due },
+    fees: {
+      trustee_and_admin:          capital.trustee_fee,
+      senior_management_fee:      capital.senior_management_fee,
+      subordinate_management_fee: capital.subordinate_management_fee ?? 0,
+    },
+  };
+  if (capital.class_b_interest_due != null) nb.class_b = { outstanding_balance: 0, accrued_interest: capital.class_b_interest_due };
+  if (capital.class_c_interest_due != null) nb.class_c = { outstanding_balance: 0, accrued_interest: capital.class_c_interest_due };
+  if (capital.class_d_interest_due != null) nb.class_d = { outstanding_balance: 0, accrued_interest: capital.class_d_interest_due };
+  return nb;
+}
+
+// ── Extraction validation for waterfall_steps ─────────────────────────────────
+
+function validateWaterfallStepsExtraction(steps) {
+  const errors = [];
+  const VALID_TYPES = new Set(['FEE','INTEREST_PAYMENT','COVERAGE_TEST_CHECK','DIVERSION',
+    'PRINCIPAL_PAYMENT','REINVESTMENT','EQUITY_DISTRIBUTION','RESERVE_ACCOUNT_FUNDING']);
+  (steps || []).forEach((step, i) => {
+    const lbl = step.step_id || `step[${i}]`;
+    if (!step.step_id)                        errors.push(`${lbl}: missing step_id`);
+    if (typeof step.step_number !== 'number') errors.push(`${lbl}: step_number must be a number`);
+    if (!VALID_TYPES.has(step.step_type))     errors.push(`${lbl}: unrecognised step_type "${step.step_type}"`);
+    if (step.step_type === 'COVERAGE_TEST_CHECK') {
+      if (!step.condition)  errors.push(`${lbl}: COVERAGE_TEST_CHECK missing condition`);
+      if (!step.diverts_to) errors.push(`${lbl}: COVERAGE_TEST_CHECK missing diverts_to`);
+    }
+  });
+  return errors;
+}
+
+// ── Scenario validation ───────────────────────────────────────────────────────
+
+function validateDiversionLedger(actual, expected, scenarioId) {
+  const errors = [];
+  if (r2(actual.total_diverted) !== r2(expected.total_diverted))
+    errors.push(`total_diverted: expected ${expected.total_diverted}, got ${actual.total_diverted}`);
+  if (r2(actual.total_distributed) !== r2(expected.total_distributed))
+    errors.push(`total_distributed: expected ${expected.total_distributed}, got ${actual.total_distributed}`);
+  if (actual.entries.length !== expected.entry_count)
+    errors.push(`entry count: expected ${expected.entry_count}, got ${actual.entries.length}`);
+
+  (expected.entry_checks || []).forEach((exp, i) => {
+    const act = actual.entries[i];
+    if (!act) { errors.push(`entry[${i}] missing`); return; }
+    if (act.step_id         !== exp.step_id)         errors.push(`entry[${i}].step_id: expected ${exp.step_id}, got ${act.step_id}`);
+    if (act.triggering_test !== exp.triggering_test) errors.push(`entry[${i}].triggering_test: expected ${exp.triggering_test}, got ${act.triggering_test}`);
+    if (r2(act.diversion_amount) !== r2(exp.diversion_amount)) errors.push(`entry[${i}].diversion_amount: expected ${exp.diversion_amount}, got ${act.diversion_amount}`);
+    if (r2(act.proceeds_before)  !== r2(exp.proceeds_before))  errors.push(`entry[${i}].proceeds_before: expected ${exp.proceeds_before}, got ${act.proceeds_before}`);
+  });
+
+  const expBlocked = new Set(expected.blocked_steps || []);
+  const actBlocked = new Set(actual.blocked_steps   || []);
+  for (const s of expBlocked) { if (!actBlocked.has(s)) errors.push(`blocked_steps: missing "${s}"`); }
+  for (const s of actBlocked) { if (!expBlocked.has(s)) errors.push(`blocked_steps: unexpected "${s}"`); }
+
+  return { passed: errors.length === 0, errors };
+}
+
+// ── Fixture: waterfall steps for synthetic deal ───────────────────────────────
+
+const FIXTURE_WATERFALL_STEPS = [
+  { step_id: 'STEP_01_TRUSTEE_FEE',      step_number: 1, step_type: 'FEE',
+    label: 'Trustee fees and expenses (Senior Expenses)', indenture_section: 'Section 13.1, Step 1',
+    beneficiary: 'Trustee', payment_type: 'FEE', amount_basis: 'FIXED' },
+  { step_id: 'STEP_02_SR_MGMT_FEE',      step_number: 2, step_type: 'FEE',
+    label: 'Senior Management Fee', indenture_section: 'Section 13.1, Step 2',
+    beneficiary: 'Collateral Manager', payment_type: 'FEE', amount_basis: 'FIXED' },
+  { step_id: 'STEP_03_HEDGE',            step_number: 3, step_type: 'FEE',
+    label: 'Hedge Counterparty payments', indenture_section: 'Section 13.1, Step 3',
+    beneficiary: 'Hedge Counterparties', payment_type: 'FEE', amount_basis: 'FIXED' },
+  { step_id: 'STEP_04_CLASS_A_INTEREST', step_number: 4, step_type: 'INTEREST_PAYMENT',
+    label: 'Accrued and unpaid interest on the Class A Notes', indenture_section: 'Section 13.1, Step 4',
+    beneficiary: 'Class A Noteholders', payment_type: 'INTEREST', note_class: 'CLASS_A', amount_basis: 'ACCRUED_INTEREST' },
+  { step_id: 'STEP_05_IC_CHECK',         step_number: 5, step_type: 'COVERAGE_TEST_CHECK',
+    label: 'Class A/B Interest Coverage Test — divert if IC fails', indenture_section: 'Section 11.2(a)',
+    condition: { test_type: 'IC', note_classes_tested: ['CLASS_A', 'CLASS_B'], operator: 'ALL_PASS' },
+    condition_raw: 'Interest Proceeds diverted per Section 13.1(b) if IC test fails',
+    diverts_to: { step_type: 'REINVESTMENT', note_class_priority: [], description: 'Redirect all remaining interest proceeds to principal reinvestment account' },
+    cure_mechanism: 'REINVESTMENT' },
+  { step_id: 'STEP_06_OC_AB_CHECK',      step_number: 6, step_type: 'COVERAGE_TEST_CHECK',
+    label: 'Class B Notes interest — provided Class A/B OC Test is satisfied', indenture_section: 'Section 13.1, Step 5',
+    beneficiary: 'Class B Noteholders', payment_type: 'INTEREST', note_class: 'CLASS_B', amount_basis: 'ACCRUED_INTEREST',
+    condition: { test_type: 'OC', note_classes_tested: ['CLASS_A', 'CLASS_B'], operator: 'ALL_PASS' },
+    condition_raw: 'Provided Class A/B OC Test is satisfied; otherwise redirect to Step 8',
+    diverts_to: { step_type: 'REINVESTMENT', note_class_priority: ['CLASS_B', 'CLASS_C'], description: 'Redirect to principal reinvestment account or pro rata paydown' },
+    cure_mechanism: 'REINVESTMENT' },
+  { step_id: 'STEP_07_OC_C_CHECK',       step_number: 7, step_type: 'COVERAGE_TEST_CHECK',
+    label: 'Class C Notes interest — provided Class C OC Test is satisfied', indenture_section: 'Section 13.1, Step 6',
+    beneficiary: 'Class C Noteholders', payment_type: 'INTEREST', note_class: 'CLASS_C', amount_basis: 'ACCRUED_INTEREST',
+    condition: { test_type: 'OC', note_classes_tested: ['CLASS_A', 'CLASS_B', 'CLASS_C'], operator: 'ALL_PASS' },
+    condition_raw: 'Provided Class C OC Test is satisfied; otherwise redirect to Step 8',
+    diverts_to: { step_type: 'REINVESTMENT', note_class_priority: ['CLASS_C'], description: 'Redirect to principal reinvestment account or pro rata paydown' },
+    cure_mechanism: 'REINVESTMENT' },
+  { step_id: 'STEP_08_SUB_MGMT_FEE',    step_number: 8, step_type: 'FEE',
+    label: 'Subordinate Management Fee', indenture_section: 'Section 13.1, Step 7',
+    beneficiary: 'Collateral Manager', payment_type: 'FEE', amount_basis: 'FIXED' },
+  { step_id: 'STEP_09_REINVESTMENT',     step_number: 9, step_type: 'REINVESTMENT',
+    label: 'Reinvestment/cure — principal reinvestment account or pro rata paydown', indenture_section: 'Section 13.1, Step 8',
+    cure_mechanism: 'REINVESTMENT' },
+];
+
+// ── Fixture: 5 scenarios ──────────────────────────────────────────────────────
+
+const FIXTURE_CAPITAL = WATERFALL_CAPITAL_STRUCTURE;
+
+const WATERFALL_SCENARIOS = [
+  {
+    id: 'SYN_4A_01', description: 'All OC/IC tests pass — no diversion, full interest distributed',
+    input: {
+      payment_date: '2026-04-15', period_start: '2026-01-15', period_end: '2026-04-14',
+      waterfall_steps: FIXTURE_WATERFALL_STEPS, capital_structure: FIXTURE_CAPITAL,
+      available_interest_proceeds: 13.30,
+      coverage_test_results: [
+        { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 150.21, threshold_pct: 123.50, result: 'PASS' },
+        { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct: 128.75, threshold_pct: 112.75, result: 'PASS' },
+        { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 203.05, threshold_pct: 120.00, result: 'PASS' },
+      ],
+    },
+    expected: { total_interest_proceeds: 13.30, total_diverted: 0, total_distributed: 8.60, entry_count: 0, entry_checks: [], blocked_steps: [] },
+  },
+  {
+    id: 'SYN_4A_02', description: 'Class A/B OC test fails — diversion fires, junior classes blocked',
+    input: {
+      payment_date: '2026-04-15', period_start: '2026-01-15', period_end: '2026-04-14',
+      waterfall_steps: FIXTURE_WATERFALL_STEPS, capital_structure: FIXTURE_CAPITAL,
+      available_interest_proceeds: 13.30,
+      coverage_test_results: [
+        { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 114.58, threshold_pct: 123.50, result: 'FAIL' },
+        { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct:  98.21, threshold_pct: 112.75, result: 'FAIL' },
+        { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 203.05, threshold_pct: 120.00, result: 'PASS' },
+      ],
+    },
+    expected: { total_interest_proceeds: 13.30, total_diverted: 8.30, total_distributed: 5.00, entry_count: 1,
+      entry_checks: [{ step_id: 'STEP_06_OC_AB_CHECK', triggering_test: 'OC_CLASS_AB', diversion_amount: 8.30, proceeds_before: 8.30 }],
+      blocked_steps: ['STEP_07_OC_C_CHECK', 'STEP_08_SUB_MGMT_FEE'] },
+  },
+  {
+    id: 'SYN_4A_03', description: 'IC test fails — separate diversion path from OC',
+    input: {
+      payment_date: '2026-04-15', period_start: '2026-01-15', period_end: '2026-04-14',
+      waterfall_steps: FIXTURE_WATERFALL_STEPS, capital_structure: FIXTURE_CAPITAL,
+      available_interest_proceeds: 7.50,
+      coverage_test_results: [
+        { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 150.21, threshold_pct: 123.50, result: 'PASS' },
+        { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct: 128.75, threshold_pct: 112.75, result: 'PASS' },
+        { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 114.50, threshold_pct: 120.00, result: 'FAIL' },
+      ],
+    },
+    expected: { total_interest_proceeds: 7.50, total_diverted: 2.50, total_distributed: 5.00, entry_count: 1,
+      entry_checks: [{ step_id: 'STEP_05_IC_CHECK', triggering_test: 'IC_CLASS_AB', diversion_amount: 2.50, proceeds_before: 2.50 }],
+      blocked_steps: ['STEP_06_OC_AB_CHECK', 'STEP_07_OC_C_CHECK', 'STEP_08_SUB_MGMT_FEE'] },
+  },
+  {
+    id: 'SYN_4A_04', description: 'Multiple tests fail simultaneously — diversion priority ordering',
+    input: {
+      payment_date: '2026-04-15', period_start: '2026-01-15', period_end: '2026-04-14',
+      waterfall_steps: FIXTURE_WATERFALL_STEPS, capital_structure: FIXTURE_CAPITAL,
+      available_interest_proceeds: 6.00,
+      coverage_test_results: [
+        { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 104.17, threshold_pct: 123.50, result: 'FAIL' },
+        { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct:  89.29, threshold_pct: 112.75, result: 'FAIL' },
+        { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct:  91.60, threshold_pct: 120.00, result: 'FAIL' },
+      ],
+    },
+    // IC fires first (step 5 < step 6/7); OC checks blocked and never execute
+    expected: { total_interest_proceeds: 6.00, total_diverted: 1.00, total_distributed: 5.00, entry_count: 1,
+      entry_checks: [{ step_id: 'STEP_05_IC_CHECK', triggering_test: 'IC_CLASS_AB', diversion_amount: 1.00, proceeds_before: 1.00 }],
+      blocked_steps: ['STEP_06_OC_AB_CHECK', 'STEP_07_OC_C_CHECK', 'STEP_08_SUB_MGMT_FEE'] },
+  },
+  {
+    id: 'SYN_4A_05', description: 'Test is right at threshold (pass by 1bp) — no diversion fires',
+    input: {
+      payment_date: '2026-04-15', period_start: '2026-01-15', period_end: '2026-04-14',
+      waterfall_steps: FIXTURE_WATERFALL_STEPS, capital_structure: FIXTURE_CAPITAL,
+      available_interest_proceeds: 13.30,
+      coverage_test_results: [
+        { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 131.55, threshold_pct: 123.50, result: 'PASS' },
+        { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct: 112.76, threshold_pct: 112.75, result: 'PASS' },
+        { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 203.05, threshold_pct: 120.00, result: 'PASS' },
+      ],
+    },
+    expected: { total_interest_proceeds: 13.30, total_diverted: 0, total_distributed: 8.60, entry_count: 0, entry_checks: [], blocked_steps: [] },
+  },
+];
+
+// ── Phase 4B fixtures ─────────────────────────────────────────────────────────
+
+const FIXTURE_WATERFALL_STEPS_4B = [
+  ...FIXTURE_WATERFALL_STEPS,
+  { step_id: 'STEP_10_EQUITY', step_number: 10, step_type: 'EQUITY_DISTRIBUTION',
+    label: 'Residual to Preferred Interest Holders', indenture_section: 'Section 13.1, Step 9',
+    beneficiary: 'Preferred Interest Holders', payment_type: 'EQUITY_DISTRIBUTION' },
+];
+
+const FIXTURE_NOTE_BALANCES_4B = {
+  payment_date: '2025-01-15',
+  class_a: { outstanding_balance: 180.00, accrued_interest: 4.50 },
+  class_b: { outstanding_balance:  72.00, accrued_interest: 1.80 },
+  class_c: { outstanding_balance:  64.00, accrued_interest: 1.60 },
+  fees: { trustee_and_admin: 0.25, senior_management_fee: 0.25, subordinate_management_fee: 0.20 },
+};
+
+const FIXTURE_COLLECTIONS_NORMAL_4B = {
+  payment_date: '2025-01-15', period_start: '2024-10-29', period_end: '2025-01-13',
+  scheduled_interest: 11.50, unscheduled_interest: 0.50, default_interest_recovered: 0.00,
+  total_interest_proceeds: 12.00,
+  scheduled_principal: 2.00, unscheduled_principal: 2.50, default_principal_recovered: 0.50,
+  total_principal_proceeds: 5.00,
+  hedge_receipts: 0.00, reserve_account_balance: 1.50,
+};
+
+const FIXTURE_COLLECTIONS_THIN_4B = {
+  payment_date: '2025-01-15', period_start: '2024-10-29', period_end: '2025-01-13',
+  scheduled_interest: 5.80, unscheduled_interest: 0.00, default_interest_recovered: 0.00,
+  total_interest_proceeds: 5.80,
+  scheduled_principal: 0.50, unscheduled_principal: 0.50, default_principal_recovered: 0.00,
+  total_principal_proceeds: 1.00,
+  hedge_receipts: 0.00, reserve_account_balance: 0.20,
+};
+
+const WATERFALL_SCENARIOS_4B = [
+  {
+    id: 'SYN_4B_01', description: 'All tests pass — full debt service funded, equity receives residual',
+    input: { waterfall_steps: FIXTURE_WATERFALL_STEPS_4B, note_balances: FIXTURE_NOTE_BALANCES_4B,
+      collections: FIXTURE_COLLECTIONS_NORMAL_4B,
+      coverage_test_results: [
+        { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 150.21, threshold_pct: 123.50, result: 'PASS' },
+        { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct: 128.75, threshold_pct: 112.75, result: 'PASS' },
+        { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 203.05, threshold_pct: 120.00, result: 'PASS' },
+      ] },
+    expected: { total_allocated: 17.00, residual_interest: 0, residual_principal: 0, entry_count: 8, diversion_count: 0,
+      entry_checks: [
+        { step_id: 'STEP_04_CLASS_A_INTEREST', amount_due: 4.50, amount_paid: 4.50, shortfall: 0,    blocked: false },
+        { step_id: 'STEP_06_OC_AB_CHECK',      amount_due: 1.80, amount_paid: 1.80, shortfall: 0,    blocked: false },
+        { step_id: 'STEP_10_EQUITY',           amount_due: 8.40, amount_paid: 8.40, shortfall: 0,    blocked: false },
+      ] },
+  },
+  {
+    id: 'SYN_4B_02', description: 'OC breach — Class B diverted, junior blocked, principal bucket grows to 12.00',
+    input: { waterfall_steps: FIXTURE_WATERFALL_STEPS_4B, note_balances: FIXTURE_NOTE_BALANCES_4B,
+      collections: FIXTURE_COLLECTIONS_NORMAL_4B,
+      coverage_test_results: [
+        { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 114.58, threshold_pct: 123.50, result: 'FAIL' },
+        { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct:  98.21, threshold_pct: 112.75, result: 'FAIL' },
+        { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 203.05, threshold_pct: 120.00, result: 'PASS' },
+      ] },
+    expected: { total_allocated: 5.00, residual_interest: 0, residual_principal: 12.00, entry_count: 8, diversion_count: 1,
+      diversion_checks: [{ step_id: 'STEP_06_OC_AB_CHECK', diversion_amount: 7.00, triggering_test: 'OC_CLASS_AB' }],
+      entry_checks: [
+        { step_id: 'STEP_06_OC_AB_CHECK',  amount_due: 1.80, amount_paid: 0,    shortfall: 1.80, blocked: false },
+        { step_id: 'STEP_07_OC_C_CHECK',   amount_due: 1.60, amount_paid: 0,    shortfall: 1.60, blocked: true  },
+        { step_id: 'STEP_08_SUB_MGMT_FEE', amount_due: 0.20, amount_paid: 0,    shortfall: 0.20, blocked: true  },
+        { step_id: 'STEP_10_EQUITY',        amount_due: 0,    amount_paid: 0,    shortfall: 0,    blocked: true  },
+      ] },
+  },
+  {
+    id: 'SYN_4B_03', description: 'Thin collections — shortfall propagates; Class B partial, C zero; equity sweeps principal',
+    input: { waterfall_steps: FIXTURE_WATERFALL_STEPS_4B, note_balances: FIXTURE_NOTE_BALANCES_4B,
+      collections: FIXTURE_COLLECTIONS_THIN_4B,
+      coverage_test_results: [
+        { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 150.21, threshold_pct: 123.50, result: 'PASS' },
+        { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct: 128.75, threshold_pct: 112.75, result: 'PASS' },
+        { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 114.50, threshold_pct: 120.00, result: 'PASS' },
+      ] },
+    expected: { total_allocated: 6.80, residual_interest: 0, residual_principal: 0, entry_count: 8, diversion_count: 0,
+      entry_checks: [
+        { step_id: 'STEP_06_OC_AB_CHECK',  amount_due: 1.80, amount_paid: 0.80, shortfall: 1.00, blocked: false },
+        { step_id: 'STEP_07_OC_C_CHECK',   amount_due: 1.60, amount_paid: 0.00, shortfall: 1.60, blocked: false },
+        { step_id: 'STEP_08_SUB_MGMT_FEE', amount_due: 0.20, amount_paid: 0.00, shortfall: 0.20, blocked: false },
+        { step_id: 'STEP_10_EQUITY',        amount_due: 1.00, amount_paid: 1.00, shortfall: 0,    blocked: false },
+      ] },
+  },
+];
+
+function validateAllocationLedger4B(actual, expected) {
+  const errors = [];
+  const chk = (lbl, a, e) => { if (r2(a) !== r2(e)) errors.push(`${lbl}: expected ${e}, got ${a}`); };
+  chk('total_allocated',    actual.total_allocated,    expected.total_allocated);
+  chk('residual_interest',  actual.residual_interest,  expected.residual_interest);
+  chk('residual_principal', actual.residual_principal, expected.residual_principal);
+  if (actual.entries.length !== expected.entry_count)
+    errors.push(`entry_count: expected ${expected.entry_count}, got ${actual.entries.length}`);
+  if (actual.diversions.length !== expected.diversion_count)
+    errors.push(`diversion_count: expected ${expected.diversion_count}, got ${actual.diversions.length}`);
+  for (const ec of (expected.entry_checks || [])) {
+    const entry = actual.entries.find(e => e.step_id === ec.step_id);
+    if (!entry) { errors.push(`entry ${ec.step_id}: not found`); continue; }
+    chk(`${ec.step_id}.amount_due`,  entry.amount_due,  ec.amount_due);
+    chk(`${ec.step_id}.amount_paid`, entry.amount_paid, ec.amount_paid);
+    chk(`${ec.step_id}.shortfall`,   entry.shortfall,   ec.shortfall);
+    if (entry.blocked !== ec.blocked) errors.push(`${ec.step_id}.blocked: expected ${ec.blocked}, got ${entry.blocked}`);
+  }
+  for (const dc of (expected.diversion_checks || [])) {
+    const div = actual.diversions.find(d => d.step_id === dc.step_id);
+    if (!div) { errors.push(`diversion ${dc.step_id}: not found`); continue; }
+    chk(`${dc.step_id}.diversion_amount`, div.diversion_amount, dc.diversion_amount);
+    if (div.triggering_test !== dc.triggering_test)
+      errors.push(`${dc.step_id}.triggering_test: expected ${dc.triggering_test}, got ${div.triggering_test}`);
+  }
+  return { passed: errors.length === 0, errors };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // DISPLAY HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -967,6 +1731,75 @@ function info(text) { console.log(`  ${C.cyan}·${C.reset}  ${text}`); }
 function warn(text) { console.log(`  ${C.amber}⚠${C.reset}  ${text}`); }
 function dim(text)  { console.log(`  ${C.grey}${text}${C.reset}`); }
 
+function printAllocationTable(entries) {
+  const pL = (s, n) => String(s ?? '').padEnd(n);
+  const pR = (s, n) => String(s ?? '').padStart(n);
+  const HR = '─'.repeat(92);
+  console.log(`\n  ${C.grey}${HR}${C.reset}`);
+  console.log(`  ${C.grey}${pL('#  Step ID', 30)} ${pL('Beneficiary', 28)} ${pR('Due $M', 7)} ${pR('Paid $M', 7)} ${pR('Shortfall', 9)}  Blocked${C.reset}`);
+  console.log(`  ${C.grey}${HR}${C.reset}`);
+  for (const e of entries) {
+    const stepLabel = pL(`${e.step_number}  ${e.step_id}`, 30);
+    const bene      = pL((e.beneficiary || '—').slice(0, 27), 28);
+    const due       = pR(e.amount_due.toFixed(2), 7);
+    const paid      = pR(e.amount_paid.toFixed(2), 7);
+    const sfStr     = pR(e.shortfall.toFixed(2), 9);
+    const sfColor   = e.shortfall > 0 ? C.amber : C.grey;
+    const blkStr    = e.blocked ? `${C.amber}YES${C.reset}` : `${C.grey}—${C.reset}`;
+    const diverted  = e.step_type === 'COVERAGE_TEST_CHECK' && e.amount_paid === 0 && !e.blocked;
+    const rowColor  = diverted ? C.amber : (e.blocked ? C.grey : C.reset);
+    console.log(`  ${rowColor}${stepLabel}${C.reset} ${rowColor}${bene}${C.reset} ${due} ${e.shortfall > 0 && !e.blocked ? C.amber : ''}${paid}${C.reset} ${sfColor}${sfStr}${C.reset}  ${blkStr}`);
+  }
+  console.log(`  ${C.grey}${HR}${C.reset}\n`);
+}
+
+function printAllocationSummary(ledger) {
+  const feesPaid = ledger.entries
+    .filter(e => e.step_type === 'FEE' && !e.blocked)
+    .reduce((s, e) => s + e.amount_paid, 0);
+
+  const byClass = {};
+  for (const e of ledger.entries) {
+    if (!e.blocked && e.note_class && (e.step_type === 'INTEREST_PAYMENT' || e.step_type === 'COVERAGE_TEST_CHECK')) {
+      byClass[e.note_class] = r2((byClass[e.note_class] ?? 0) + e.amount_paid);
+    }
+  }
+
+  const equityEntry = ledger.entries.find(e => e.step_type === 'EQUITY_DISTRIBUTION' && !e.blocked);
+  const totalInterest = r2(Object.values(byClass).reduce((s, v) => s + v, 0));
+
+  info(`Fees:                  ${C.bold}$${r2(feesPaid).toFixed(2)}M${C.reset}`);
+  for (const [cls, amt] of Object.entries(byClass)) {
+    const lbl = `Interest — ${cls.replace('CLASS_', 'Class ')}:`;
+    info(`${lbl.padEnd(23)} ${C.bold}$${amt.toFixed(2)}M${C.reset}`);
+  }
+  if (Object.keys(byClass).length > 1) {
+    info(`Total interest:        ${C.bold}$${totalInterest.toFixed(2)}M${C.reset}`);
+  }
+  if (equityEntry && equityEntry.amount_paid > 0) {
+    info(`Equity distribution:   ${C.bold}$${equityEntry.amount_paid.toFixed(2)}M${C.reset}`);
+  }
+  console.log();
+  info(`Total allocated:       ${C.bold}$${ledger.total_allocated.toFixed(2)}M${C.reset}`);
+
+  if (ledger.diversions.length > 0) {
+    console.log();
+    for (const div of ledger.diversions) {
+      const tgt = div.diversion_target ? (div.diversion_target.description || div.diversion_target.step_type) : 'REINVESTMENT';
+      warn(`Diversion fired: $${div.diversion_amount.toFixed(2)}M → ${tgt}`);
+      dim(`    Test: ${div.triggering_test} FAIL  ·  Section: ${div.indenture_section}`);
+    }
+  }
+
+  console.log();
+  if (ledger.residual_interest === 0 && ledger.residual_principal === 0) {
+    pass('Both buckets closed to zero — waterfall fully allocated');
+  } else {
+    if (ledger.residual_interest  > 0) warn(`Residual interest:     $${ledger.residual_interest.toFixed(2)}M  (spec gap)`);
+    if (ledger.residual_principal > 0) info(`Residual principal:    ${C.bold}$${ledger.residual_principal.toFixed(2)}M${C.reset}  (reinvestment proceeds)`);
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN
 // ─────────────────────────────────────────────────────────────────────────────
@@ -974,6 +1807,8 @@ function dim(text)  { console.log(`  ${C.grey}${text}${C.reset}`); }
 async function main() {
   const args = process.argv.slice(2);
   const verbose       = args.includes('--verbose');
+  const runWaterfall  = args.includes('--waterfall');
+  const outputJson    = args.includes('--output=json');
   const fileArg       = args.indexOf('--file');
   const modeArg       = args.find(a => a.startsWith('--mode='));
   const mode          = modeArg ? modeArg.split('=')[1] : 'synthetic';
@@ -1054,7 +1889,11 @@ async function main() {
   info(`Deal: ${C.bold}${extracted.deal_name}${C.reset}`);
   info(`Coverage tests extracted: ${C.bold}${extracted.coverage_tests?.length || 0}${C.reset}`);
   info(`Concentration limits extracted: ${C.bold}${extracted.concentration_limits?.length || 0}${C.reset}`);
-  info(`Waterfall steps extracted: ${C.bold}${extracted.waterfall?.length || 0}${C.reset}`);
+  const extractedWaterfallSteps = extracted.waterfall_steps || extracted.waterfall || [];
+  if (extracted.waterfall && !extracted.waterfall_steps) {
+    warn('[WARN] Extraction used legacy "waterfall" field — diversion engine requires "waterfall_steps" (new schema). Re-run with updated prompt.');
+  }
+  info(`Waterfall steps extracted: ${C.bold}${extractedWaterfallSteps.length}${C.reset}`);
   info(`Overall confidence: ${C.bold}${extracted.extraction_summary?.overall_confidence || 'N/A'}${C.reset}`);
 
   if (extracted.extraction_summary?.flags?.length > 0) {
@@ -1248,6 +2087,110 @@ async function main() {
     }
   }
 
+  // ── STEP 6: FULL WATERFALL ALLOCATION (Phase 4B) ────────────────────────
+  let waterfallScenarioPassed = 0;
+  let waterfallScenarioFailed = 0;
+  let waterfall4BPassed       = 0;
+  let waterfall4BFailed       = 0;
+  let liveAllocationLedger    = null;
+
+  if (runWaterfall) {
+    section('STEP 6 — Full Waterfall Allocation Engine (Phase 4B)');
+
+    if (mode === 'synthetic') {
+      // Gate 4A: diversion engine scenarios
+      info(`Running ${WATERFALL_SCENARIOS.length} diversion scenarios (SYN_4A_01–SYN_4A_05)...`);
+      console.log();
+      for (const scenario of WATERFALL_SCENARIOS) {
+        const ledger = runWaterfallDiversion(scenario.input);
+        const { passed, errors } = validateDiversionLedger(ledger, scenario.expected, scenario.id);
+        if (passed) {
+          pass(`${scenario.id}  ${C.grey}${scenario.description}${C.reset}`);
+          waterfallScenarioPassed++;
+        } else {
+          fail(`${scenario.id}  ${scenario.description}`);
+          errors.forEach(e => dim(`        ${e}`));
+          waterfallScenarioFailed++;
+        }
+      }
+      console.log();
+      const total4A  = waterfallScenarioPassed + waterfallScenarioFailed;
+      const color4A  = waterfallScenarioFailed === 0 ? C.green : C.red;
+      info(`4A gate: ${color4A}${C.bold}${waterfallScenarioPassed}/${total4A} passed${C.reset}`);
+
+      // Gate 4B: full allocation scenarios
+      console.log();
+      info(`Running ${WATERFALL_SCENARIOS_4B.length} full waterfall scenarios (SYN_4B_01–SYN_4B_03)...`);
+      console.log();
+      for (const scenario of WATERFALL_SCENARIOS_4B) {
+        const ledger = runWaterfall4B(scenario.input);
+        const { passed, errors } = validateAllocationLedger4B(ledger, scenario.expected);
+        if (passed) {
+          pass(`${scenario.id}  ${C.grey}${scenario.description}${C.reset}`);
+          waterfall4BPassed++;
+        } else {
+          fail(`${scenario.id}  ${scenario.description}`);
+          errors.forEach(e => dim(`        ${e}`));
+          waterfall4BFailed++;
+        }
+      }
+      console.log();
+      const total4B = waterfall4BPassed + waterfall4BFailed;
+      const color4B = waterfall4BFailed === 0 ? C.green : C.red;
+      info(`4B gate: ${color4B}${C.bold}${waterfall4BPassed}/${total4B} passed${C.reset}`);
+
+      if (waterfallScenarioFailed === 0 && waterfall4BFailed === 0) {
+        console.log();
+        console.log(`${C.green}${C.bold}  ✓  4A + 4B GATES PASSED — Full waterfall engine verified.${C.reset}`);
+      } else {
+        console.log();
+        console.log(`${C.red}${C.bold}  ✗  GATE NOT MET: Fix failing scenarios before proceeding.${C.reset}`);
+      }
+
+    } else {
+      // Real mode: run 4B full engine against extracted steps + coverage results
+      if (extractedWaterfallSteps.length === 0) {
+        warn('No waterfall_steps in extraction — cannot run waterfall engine. Check extraction output.');
+      } else {
+        const valErrors = validateWaterfallStepsExtraction(extractedWaterfallSteps);
+        if (valErrors.length > 0) {
+          warn(`Waterfall step validation: ${valErrors.length} error(s):`);
+          valErrors.forEach(e => dim(`    ${e}`));
+        }
+
+        const totalInterestProceeds = r2(activeLoanTape
+          .filter(l => l.status !== 'PIK')
+          .reduce((s, l) => s + (l.accrued_interest || 0), 0));
+
+        const collectionsForRun = {
+          payment_date: new Date().toISOString().slice(0, 10),
+          period_start: '', period_end: '',
+          scheduled_interest: totalInterestProceeds, unscheduled_interest: 0, default_interest_recovered: 0,
+          total_interest_proceeds: totalInterestProceeds,
+          scheduled_principal: 0, unscheduled_principal: 0, default_principal_recovered: 0,
+          total_principal_proceeds: 0,
+          hedge_receipts: 0, reserve_account_balance: 0,
+        };
+
+        const noteBalancesForRun = noteBalancesFromCapital(WATERFALL_CAPITAL_STRUCTURE);
+
+        info(`Interest proceeds (from tape):  ${C.bold}$${totalInterestProceeds.toFixed(2)}M${C.reset}`);
+        info(`Principal proceeds:             ${C.grey}$0.00M (not in extraction scope)${C.reset}`);
+        console.log();
+
+        liveAllocationLedger = runWaterfall4B({
+          waterfall_steps:       extractedWaterfallSteps,
+          coverage_test_results: testResults,
+          collections:           collectionsForRun,
+          note_balances:         noteBalancesForRun,
+        });
+
+        printAllocationTable(liveAllocationLedger.entries);
+        printAllocationSummary(liveAllocationLedger);
+      }
+    }
+  }
+
   // ── SUMMARY ─────────────────────────────────────────────────────────────
   banner('BARLOW PIPELINE SUMMARY');
 
@@ -1259,8 +2202,25 @@ async function main() {
 
   info(`Extraction accuracy:  ${C.bold}${Math.round(extractionScore * 100)}%${C.reset}`);
   info(`Tests run:            ${C.bold}${totalTests}${C.reset}  (${passCount} pass / ${failCount} fail)`);
+  if (runWaterfall && mode === 'synthetic') {
+    const total4A = waterfallScenarioPassed + waterfallScenarioFailed;
+    const total4B = waterfall4BPassed + waterfall4BFailed;
+    const c4A = waterfallScenarioFailed === 0 ? C.green : C.red;
+    const c4B = waterfall4BFailed       === 0 ? C.green : C.red;
+    info(`4A scenarios:         ${c4A}${C.bold}${waterfallScenarioPassed}/${total4A} passed${C.reset}`);
+    info(`4B scenarios:         ${c4B}${C.bold}${waterfall4BPassed}/${total4B} passed${C.reset}`);
+  }
+  if (runWaterfall && liveAllocationLedger) {
+    const ndiv = liveAllocationLedger.diversions.length;
+    const divAmt = liveAllocationLedger.diversions.reduce((s, d) => s + d.diversion_amount, 0);
+    const dc = ndiv > 0 ? C.amber : C.green;
+    info(`Total allocated:      ${C.bold}$${liveAllocationLedger.total_allocated.toFixed(2)}M${C.reset}`);
+    info(`Diversions (cure):    ${dc}${C.bold}$${r2(divAmt).toFixed(2)}M${C.reset}  across ${ndiv} event(s)`);
+    if (liveAllocationLedger.residual_principal > 0)
+      info(`Reinvestment pool:    ${C.bold}$${liveAllocationLedger.residual_principal.toFixed(2)}M${C.reset}`);
+  }
   info(`AI calls made:        ${C.bold}${failCount > 0 ? 2 : 1}${C.reset}  (1 extraction + ${failCount > 0 ? '1 narrative' : '0 narrative'})`);
-  info(`Deterministic calc:   ${C.bold}100%${C.reset}  (no AI in test runner path)`);
+  info(`Deterministic calc:   ${C.bold}100%${C.reset}  (no AI in waterfall/test runner path)`);
 
   console.log();
   if (extractionScore === 1 && totalTests > 0) {
@@ -1280,16 +2240,27 @@ async function main() {
     validation,
     coverage_test_results: testResults,
     concentration_test_results: concentrationResults,
+    ...(liveAllocationLedger ? { waterfall_allocation_ledger: liveAllocationLedger } : {}),
     pipeline_summary: {
       extraction_accuracy_pct: Math.round(extractionScore * 100),
       tests_passed: passCount,
-      tests_failed: failCount
+      tests_failed: failCount,
+      ...(runWaterfall && mode === 'synthetic' ? {
+        waterfall_4a_scenarios_passed: waterfallScenarioPassed,
+        waterfall_4a_scenarios_failed: waterfallScenarioFailed,
+      } : {}),
     }
   };
 
   const outPath = '/home/andycarthy/barlow/barlow_output.json';
   fs.writeFileSync(outPath, JSON.stringify(output, null, 2));
   info(`Full output written to: ${C.cyan}${outPath}${C.reset}`);
+
+  if (outputJson && liveAllocationLedger) {
+    const ledgerPath = '/home/andycarthy/barlow/waterfall_allocation_ledger.json';
+    fs.writeFileSync(ledgerPath, JSON.stringify(liveAllocationLedger, null, 2));
+    info(`Allocation ledger written to: ${C.cyan}${ledgerPath}${C.reset}  (Phase 5 input)`);
+  }
   console.log();
 }
 

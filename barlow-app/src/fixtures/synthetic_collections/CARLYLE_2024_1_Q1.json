@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "deal":         "Carlyle Direct Lending CLO 2024-1, LLC",
+    "period_label": "Q1 — First Payment Period",
+    "notes":        "Synthetic fixture. All amounts in USD millions. Portfolio ~$480M at close (2024-10-29). SOFR assumed 5.30%. 78-day accrual period."
+  },
+
+  "payment_date": "2025-01-15",
+  "period_start": "2024-10-29",
+  "period_end":   "2025-01-13",
+
+  "scheduled_interest":         8.54,
+  "unscheduled_interest":       0.19,
+  "default_interest_recovered": 0.05,
+  "total_interest_proceeds":    8.78,
+
+  "scheduled_principal":          0.45,
+  "unscheduled_principal":        4.80,
+  "default_principal_recovered":  0.38,
+  "total_principal_proceeds":     5.63,
+
+  "hedge_receipts":          0.14,
+  "reserve_account_balance": 1.20
+}
