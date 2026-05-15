@@ -1807,6 +1807,163 @@ function printAllocationSummary(ledger) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5B — EXCEPTION NARRATIVE GENERATOR
+// Per-exception narrative generation using structured 5B prompt.
+// Each narrative is ≤ 150 words, cites the indenture section, and uses only
+// figures from the exception data (no hallucination).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const EXCEPTION_NARRATIVE_5B_SYSTEM_PROMPT = `\
+You are a CLO trustee report writer producing official exception narratives for institutional noteholder disclosure.
+
+HARD RULES — EVERY RULE IS MANDATORY:
+
+1. LENGTH: 150 words maximum. Count carefully before responding.
+2. SECTION CITATION: Cite the exact indenture section provided (e.g., "pursuant to Section 11.1(a)" or "as set forth in §12.2(c)"). The citation must appear in the narrative.
+3. NO HALLUCINATION: Use ONLY the numbers listed under PERMITTED FIGURES. Do not calculate, estimate, infer, or round to any other value. Every percentage and dollar figure in your narrative must exactly match a permitted figure.
+4. REGISTER: Formal, passive, institutional English. Third person throughout. No contractions. No opinion or commentary.
+5. FORMAT: One plain prose paragraph. No headers. No bullet points. No markdown formatting.
+
+Do not include a disclaimer line — it is appended automatically by the system.
+Do not preface your response with any explanation. Begin the paragraph directly.`;
+
+function quarterTag5B(date) {
+  const d = new Date(date);
+  return `${d.getFullYear()}Q${Math.ceil((d.getMonth() + 1) / 3)}`;
+}
+
+function buildExceptionEntries5B(testResults, concentrationResults, paymentDate) {
+  const qtag   = quarterTag5B(paymentDate || new Date().toISOString().slice(0, 10));
+  const entries = [];
+  for (const ct of testResults) {
+    if (ct.result !== 'FAIL') continue;
+    entries.push({
+      exception_id:    `EXC_${qtag}_${ct.test_id}`,
+      exception_type:  ct.test_type === 'overcollateralization' ? 'OC_BREACH' : 'IC_BREACH',
+      indenture_section: ct.source_clause || 'Indenture',
+      breach_depth:    r2(ct.threshold_pct - ct.calculated_pct),
+      actual:          ct.calculated_pct,
+      threshold:       ct.threshold_pct,
+      test_id:         ct.test_id,
+      test_type_str:   ct.test_type === 'overcollateralization' ? 'Overcollateralization' : 'Interest Coverage',
+    });
+  }
+  for (const cl of concentrationResults) {
+    if (cl.result !== 'FAIL') continue;
+    entries.push({
+      exception_id:    `EXC_${qtag}_${cl.limit_id}`,
+      exception_type:  'CONCENTRATION_BREACH',
+      indenture_section: cl.source_clause || 'Indenture',
+      breach_depth:    r2((cl.actual_pct || 0) - cl.max_pct),
+      actual_pct:      cl.actual_pct || 0,
+      max_pct:         cl.max_pct,
+      limit_id:        cl.limit_id,
+      description_str: cl.description,
+    });
+  }
+  return entries;
+}
+
+function build5BUserMessage(exc, extractedRules, diversionLedger) {
+  let metricsBlock, permittedLines, indentureText;
+
+  if (exc.exception_type === 'OC_BREACH' || exc.exception_type === 'IC_BREACH') {
+    const src = (extractedRules.coverage_tests || []).find(t => t.test_id === exc.test_id);
+    indentureText = src
+      ? `${src.description}\nNumerator: ${src.numerator}\nDenominator: ${src.denominator}\nFailure action: ${src.failure_action}\nSource: ${src.source_clause}`
+      : exc.indenture_section;
+    metricsBlock  = [
+      `Test ID:           ${exc.test_id}`,
+      `Test Type:         ${exc.test_type_str}`,
+      `Actual ratio:      ${exc.actual}%`,
+      `Required threshold:${exc.threshold}%`,
+      `Breach depth:      ${exc.breach_depth}% below threshold`,
+      `Result:            FAIL`,
+    ].join('\n');
+    permittedLines = [
+      `  1. ${exc.actual}% (actual ratio)`,
+      `  2. ${exc.threshold}% (required threshold)`,
+      `  3. ${exc.breach_depth}% (breach depth / shortfall below threshold)`,
+    ];
+  } else {
+    const src = (extractedRules.concentration_limits || []).find(l => l.limit_id === exc.limit_id);
+    indentureText = src
+      ? `${src.description}\nDimension: ${src.dimension}\nMaximum: ${src.max_pct}%\nCalculation basis: ${src.calculation_basis}\nSource: ${src.source_clause}`
+      : exc.indenture_section;
+    metricsBlock  = [
+      `Limit ID:          ${exc.limit_id}`,
+      `Description:       ${exc.description_str}`,
+      `Actual level:      ${exc.actual_pct}%`,
+      `Maximum permitted: ${exc.max_pct}%`,
+      `Excess:            ${exc.breach_depth}% above limit`,
+      `Result:            FAIL`,
+    ].join('\n');
+    permittedLines = [
+      `  1. ${exc.actual_pct}% (actual concentration)`,
+      `  2. ${exc.max_pct}% (maximum permitted)`,
+      `  3. ${exc.breach_depth}% (excess above limit)`,
+    ];
+  }
+
+  // Attach diversion detail if the ledger is available and this test triggered one.
+  let divBlock = '';
+  if (diversionLedger && exc.test_id) {
+    const div = (diversionLedger.diversions || []).find(d => d.triggering_test === exc.test_id);
+    if (div) {
+      divBlock = [
+        '',
+        'DIVERSION TRIGGERED:',
+        `  Amount diverted:  $${div.diversion_amount}M`,
+        `  Cure mechanism:   ${div.cure_mechanism}`,
+        `  Target:           ${div.diversion_target ? div.diversion_target.description : 'Principal reinvestment'}`,
+      ].join('\n');
+      permittedLines.push(`  ${permittedLines.length + 1}. $${div.diversion_amount}M (amount diverted to cure mechanism)`);
+    }
+  }
+
+  return [
+    `EXCEPTION ID:      ${exc.exception_id}`,
+    `TYPE:              ${exc.exception_type}`,
+    `INDENTURE SECTION: ${exc.indenture_section}`,
+    '',
+    'INDENTURE TEXT:',
+    indentureText,
+    '',
+    'BREACH METRICS:',
+    metricsBlock,
+    divBlock,
+    '',
+    'PERMITTED FIGURES (use ONLY these numbers in your narrative — no others are permitted):',
+    permittedLines.join('\n'),
+    '',
+    'Write the narrative paragraph for this exception now.',
+  ].join('\n');
+}
+
+function validate5BNarrative(text, exc) {
+  let result = text.trim();
+  const words = result.split(/\s+/).filter(Boolean);
+  if (words.length > 150) result = words.slice(0, 150).join(' ') + '…';
+  return result;
+}
+
+async function generateNarratives5B(excEntries, extractedRules, diversionLedger) {
+  const narratives = [];
+  for (const exc of excEntries) {
+    const userMsg = build5BUserMessage(exc, extractedRules, diversionLedger);
+    const resp = await callClaude(EXCEPTION_NARRATIVE_5B_SYSTEM_PROMPT, userMsg, 400);
+    const raw  = resp.content[0]?.text || '';
+    narratives.push({
+      exception_id:    exc.exception_id,
+      exception_type:  exc.exception_type,
+      indenture_section: exc.indenture_section,
+      narrative:       validate5BNarrative(raw, exc),
+    });
+  }
+  return narratives;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1814,6 +1971,7 @@ async function main() {
   const args = process.argv.slice(2);
   const verbose       = args.includes('--verbose');
   const runWaterfall  = args.includes('--waterfall');
+  const noNarratives  = args.includes('--no-narratives');
   const outputJson    = args.includes('--output=json');
   const fileArg       = args.indexOf('--file');
   const modeArg       = args.find(a => a.startsWith('--mode='));
@@ -2070,30 +2228,7 @@ async function main() {
     }
   }
 
-  // ── STEP 5: EXCEPTION NARRATIVE ─────────────────────────────────────────
-  section('STEP 5 — Exception Narrative Generation (AI)');
-
-  const allFailed = testResults.filter(t => t.result === 'FAIL').length +
-                    concentrationResults.filter(t => t.result === 'FAIL').length;
-
-  if (allFailed === 0) {
-    pass('All tests passed — no exception narrative required');
-  } else {
-    info(`${allFailed} test failure(s) detected. Generating trustee report narrative...`);
-    console.log();
-    try {
-      const narrative = await generateExceptionNarrative(testResults, concentrationResults, extracted);
-      if (narrative) {
-        console.log(`${C.grey}${'─'.repeat(60)}${C.reset}`);
-        narrative.split('\n').forEach(line => console.log(`  ${line}`));
-        console.log(`${C.grey}${'─'.repeat(60)}${C.reset}`);
-      }
-    } catch (e) {
-      warn(`Narrative generation failed: ${e.message}`);
-    }
-  }
-
-  // ── STEP 6: FULL WATERFALL ALLOCATION (Phase 4B) ────────────────────────
+  // ── STEP 5: FULL WATERFALL ALLOCATION (Phase 4B) ────────────────────────
   let waterfallScenarioPassed = 0;
   let waterfallScenarioFailed = 0;
   let waterfall4BPassed       = 0;
@@ -2101,7 +2236,7 @@ async function main() {
   let liveAllocationLedger    = null;
 
   if (runWaterfall) {
-    section('STEP 6 — Full Waterfall Allocation Engine (Phase 4B)');
+    section('STEP 5 — Full Waterfall Allocation Engine (Phase 4B)');
 
     if (mode === 'synthetic') {
       // Gate 4A: diversion engine scenarios
@@ -2197,6 +2332,40 @@ async function main() {
     }
   }
 
+  // ── STEP 6: EXCEPTION NARRATIVES (Phase 5B) ─────────────────────────────
+  const allFailed5B = testResults.filter(t => t.result === 'FAIL').length +
+                      concentrationResults.filter(t => t.result === 'FAIL').length;
+  let generatedNarratives = [];
+
+  if (allFailed5B === 0) {
+    // Nothing to do — summary will note this.
+  } else if (noNarratives) {
+    section('STEP 6 — Exception Narratives (Phase 5B)');
+    warn('--no-narratives: skipping narrative generation (exception_narratives will be null in output)');
+  } else {
+    section('STEP 6 — Exception Narratives (Phase 5B)');
+    const paymentDate = new Date().toISOString().slice(0, 10);
+    const excEntries  = buildExceptionEntries5B(testResults, concentrationResults, paymentDate);
+    info(`Generating ${excEntries.length} narrative(s) via Claude...`);
+    console.log();
+    try {
+      generatedNarratives = await generateNarratives5B(excEntries, extracted, liveAllocationLedger);
+      for (const n of generatedNarratives) {
+        const label = n.exception_id.replace(/^EXC_\d{4}Q\d_/, '');
+        console.log(`${C.grey}${'─'.repeat(60)}${C.reset}`);
+        console.log(`  ${C.amber}${C.bold}${n.exception_id}${C.reset}  ${C.grey}(${n.exception_type})${C.reset}`);
+        console.log();
+        n.narrative.split('\n').forEach(line => console.log(`  ${line}`));
+        console.log();
+        console.log(`  ${C.grey}*Generated by Barlow 5B. Controller review required before distribution.*${C.reset}`);
+        console.log();
+      }
+      console.log(`${C.grey}${'─'.repeat(60)}${C.reset}`);
+    } catch (e) {
+      warn(`5B narrative generation failed: ${e.message}`);
+    }
+  }
+
   // ── SUMMARY ─────────────────────────────────────────────────────────────
   banner('BARLOW PIPELINE SUMMARY');
 
@@ -2225,8 +2394,12 @@ async function main() {
     if (liveAllocationLedger.residual_principal > 0)
       info(`Reinvestment pool:    ${C.bold}$${liveAllocationLedger.residual_principal.toFixed(2)}M${C.reset}`);
   }
-  info(`AI calls made:        ${C.bold}${failCount > 0 ? 2 : 1}${C.reset}  (1 extraction + ${failCount > 0 ? '1 narrative' : '0 narrative'})`);
+  const narrativeCallCount = generatedNarratives.length;
+  info(`AI calls made:        ${C.bold}${1 + narrativeCallCount}${C.reset}  (1 extraction + ${narrativeCallCount} narrative${narrativeCallCount !== 1 ? 's' : ''})`);
   info(`Deterministic calc:   ${C.bold}100%${C.reset}  (no AI in waterfall/test runner path)`);
+  if (noNarratives && failCount > 0) {
+    info(`Narratives:           ${C.grey}skipped (--no-narratives)${C.reset}`);
+  }
 
   console.log();
   if (extractionScore === 1 && totalTests > 0) {
@@ -2247,6 +2420,7 @@ async function main() {
     coverage_test_results: testResults,
     concentration_test_results: concentrationResults,
     ...(liveAllocationLedger ? { waterfall_allocation_ledger: liveAllocationLedger } : {}),
+    ...(generatedNarratives.length > 0 ? { exception_narratives: generatedNarratives } : {}),
     pipeline_summary: {
       extraction_accuracy_pct: Math.round(extractionScore * 100),
       tests_passed: passCount,
