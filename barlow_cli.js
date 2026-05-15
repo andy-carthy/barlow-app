@@ -764,11 +764,14 @@ function runConcentrationTests(extractedRules, loanTape, verbose = false) {
       console.log(`  ${C.amber}⚠${C.reset}  [WARN] Tiered limit ${limit.limit_id} detected — tier-aware evaluation not yet implemented. Falling back to scalar max_pct (${limit.max_pct}%).`);
     }
 
+    let actualPct = 0;
+
     if (limit.dimension === 'obligor') {
       const byObligor = {};
       tape.forEach(l => { byObligor[l.obligor] = (byObligor[l.obligor] || 0) + l.par; });
       Object.entries(byObligor).forEach(([obligor, par]) => {
         const pct = (par / totalPar) * 100;
+        if (pct > actualPct) actualPct = pct;
         if (pct > limit.max_pct) {
           breaches.push({ item: obligor, par_value: Math.round(par * 100) / 100, pct: Math.round(pct * 100) / 100 });
         }
@@ -779,17 +782,18 @@ function runConcentrationTests(extractedRules, loanTape, verbose = false) {
       tape.forEach(l => { byIndustry[l.industry] = (byIndustry[l.industry] || 0) + l.par; });
       Object.entries(byIndustry).forEach(([industry, par]) => {
         const pct = (par / totalPar) * 100;
+        if (pct > actualPct) actualPct = pct;
         if (pct > limit.max_pct) {
           breaches.push({ item: industry, par_value: Math.round(par * 100) / 100, pct: Math.round(pct * 100) / 100 });
         }
       });
 
     } else if (limit.dimension === 'rating_bucket') {
-      // CCC bucket — ratings at or below CCC+
       const cccRatings = ['CCC+', 'CCC', 'CCC-', 'CC', 'C', 'D'];
       const cccLoans = tape.filter(l => cccRatings.includes(l.rating) || l.status === 'Defaulted');
       const cccPar = cccLoans.reduce((s, l) => s + l.par, 0);
       const cccPct = (cccPar / totalPar) * 100;
+      actualPct = cccPct;
       if (cccPct > limit.max_pct) {
         breaches.push({
           item: 'CCC/Caa bucket',
@@ -800,10 +804,10 @@ function runConcentrationTests(extractedRules, loanTape, verbose = false) {
       }
 
     } else if (limit.dimension === 'loan_type') {
-      // DIP loans
       const dipLoans = tape.filter(l => l.loan_type === 'DIP');
       const dipPar = dipLoans.reduce((s, l) => s + l.par, 0);
       const dipPct = (dipPar / totalPar) * 100;
+      actualPct = dipPct;
       if (dipPct > limit.max_pct) {
         breaches.push({ item: 'DIP loans', par_value: Math.round(dipPar * 100) / 100, pct: Math.round(dipPct * 100) / 100 });
       }
@@ -813,14 +817,16 @@ function runConcentrationTests(extractedRules, loanTape, verbose = false) {
     }
 
     results.push({
-      limit_id: limit.limit_id,
-      description: limit.description,
-      max_pct: limit.max_pct,
+      limit_id:        limit.limit_id,
+      description:     limit.description,
+      max_pct:         limit.max_pct,
+      actual_pct:      Math.round(actualPct * 100) / 100,
+      headroom:        Math.round((limit.max_pct - actualPct) * 100) / 100,
       total_par_basis: Math.round(totalPar * 100) / 100,
-      result: breaches.length === 0 ? 'PASS' : 'FAIL',
-      breach_count: breaches.length,
+      result:          breaches.length === 0 ? 'PASS' : 'FAIL',
+      breach_count:    breaches.length,
       breaches,
-      source_clause: limit.source_clause
+      source_clause:   limit.source_clause
     });
   }
   return results;
