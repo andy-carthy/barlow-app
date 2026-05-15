@@ -1,0 +1,203 @@
+{
+  "deal_name": "Carlyle Direct Lending CLO 2024-1, Ltd.",
+  "extraction_date": "2026-01-15",
+  "coverage_tests": [
+    {
+      "test_id": "OC_CLASS_AB",
+      "test_type": "overcollateralization",
+      "description": "Class A/B Overcollateralization Test: Adjusted Collateral Principal Amount divided by the aggregate outstanding principal balance of the Class A Notes and the Class B Notes.",
+      "numerator": "Adjusted Collateral Principal Amount",
+      "denominator": "Aggregate outstanding principal balance of Class A Notes and Class B Notes",
+      "threshold_pct": 137.06,
+      "failure_action": "Redirect interest proceeds to principal reinvestment account until the Class A/B OC Threshold is restored.",
+      "source_clause": "§11.1(a)",
+      "confidence": "HIGH",
+      "confidence_reason": "Threshold and cure explicitly stated in indenture."
+    },
+    {
+      "test_id": "OC_CLASS_C",
+      "test_type": "overcollateralization",
+      "description": "Class C Overcollateralization Test: Adjusted Collateral Principal Amount divided by the aggregate outstanding principal balance of Class A, B, and C Notes.",
+      "numerator": "Adjusted Collateral Principal Amount",
+      "denominator": "Aggregate outstanding principal balance of Class A, B, and C Notes",
+      "threshold_pct": 120.40,
+      "failure_action": "Interest proceeds diverted per Section 11.1(b); principal reinvestment or pro rata paydown.",
+      "source_clause": "§11.1(b)",
+      "confidence": "HIGH",
+      "confidence_reason": "Threshold and cure explicitly stated in indenture."
+    },
+    {
+      "test_id": "IC_CLASS_AB",
+      "test_type": "interest_coverage",
+      "description": "Class A/B Interest Coverage Test: Interest Proceeds divided by the sum of accrued interest on Class A Notes, Class B Notes, and the Senior Management Fee.",
+      "numerator": "Interest Proceeds received during the related Interest Accrual Period",
+      "denominator": "Accrued interest on Class A + Class B Notes + Senior Management Fee",
+      "threshold_pct": 120.00,
+      "failure_action": "Redirect Interest Proceeds per Section 13.1(b).",
+      "source_clause": "§11.2(a)",
+      "confidence": "HIGH",
+      "confidence_reason": "Threshold and cure explicitly stated in indenture."
+    }
+  ],
+  "concentration_limits": [
+    {
+      "limit_id": "SINGLE_OBLIGOR",
+      "description": "Maximum single-obligor concentration (including affiliates)",
+      "dimension": "obligor",
+      "max_pct": 3.0,
+      "calculation_basis": "Percentage of Adjusted Collateral Principal Amount",
+      "source_clause": "§12.2(a)",
+      "confidence": "HIGH",
+      "confidence_reason": "Explicit limit in indenture."
+    },
+    {
+      "limit_id": "SINGLE_INDUSTRY",
+      "description": "Single Moody's Industry Classification Group concentration",
+      "dimension": "industry",
+      "max_pct": 15.0,
+      "tiers": [
+        { "rank": "largest", "max_pct": 20.0 },
+        { "rank": "second_largest", "max_pct": 17.0 },
+        { "rank": "all_others", "max_pct": 15.0 }
+      ],
+      "calculation_basis": "Percentage of Adjusted Collateral Principal Amount",
+      "source_clause": "§12.2(b)",
+      "confidence": "HIGH",
+      "confidence_reason": "Tiered limits explicitly stated in indenture."
+    },
+    {
+      "limit_id": "CCC_BUCKET",
+      "description": "CCC/Caa-rated or below bucket",
+      "dimension": "rating_bucket",
+      "max_pct": 7.5,
+      "calculation_basis": "Percentage of Adjusted Collateral Principal Amount; Defaulted Obligations treated as CCC/Caa-rated",
+      "source_clause": "§12.2(c)",
+      "confidence": "HIGH",
+      "confidence_reason": "Explicit limit in indenture."
+    },
+    {
+      "limit_id": "SECOND_LIEN",
+      "description": "Second Lien Loans concentration limit",
+      "dimension": "loan_type",
+      "max_pct": 10.0,
+      "applies_to": ["SECOND_LIEN"],
+      "calculation_basis": "Percentage of Adjusted Collateral Principal Amount",
+      "source_clause": "§12.2(d)",
+      "confidence": "HIGH",
+      "confidence_reason": "Explicit limit in indenture."
+    },
+    {
+      "limit_id": "DIP_LOAN",
+      "description": "Debtor-in-possession loans",
+      "dimension": "loan_type",
+      "max_pct": 5.0,
+      "applies_to": ["DIP"],
+      "calculation_basis": "Percentage of Adjusted Collateral Principal Amount",
+      "source_clause": "§12.2(e)",
+      "confidence": "HIGH",
+      "confidence_reason": "Explicit limit in indenture."
+    }
+  ],
+  "waterfall_steps": [
+    {
+      "step_id": "TRUSTEE_FEES",
+      "step_number": 1,
+      "step_type": "FEE",
+      "label": "Trustee & Administrative Expenses",
+      "indenture_section": "§13.1(1)",
+      "beneficiary": "Wilmington Trust, N.A.",
+      "payment_type": "FEE",
+      "amount_basis": "FIXED"
+    },
+    {
+      "step_id": "SR_MGMT_FEE",
+      "step_number": 2,
+      "step_type": "FEE",
+      "label": "Senior Management Fee",
+      "indenture_section": "§13.1(2)",
+      "beneficiary": "Carlyle Investment Management L.L.C.",
+      "payment_type": "FEE",
+      "amount_basis": "FIXED"
+    },
+    {
+      "step_id": "CLASS_A_INTEREST",
+      "step_number": 3,
+      "step_type": "INTEREST_PAYMENT",
+      "label": "Class A Interest",
+      "indenture_section": "§13.1(4)",
+      "beneficiary": "Class A Noteholders",
+      "note_class": "CLASS_A",
+      "payment_type": "INTEREST",
+      "amount_basis": "ACCRUED_INTEREST"
+    },
+    {
+      "step_id": "OC_CLASS_AB_CHECK",
+      "step_number": 4,
+      "step_type": "COVERAGE_TEST_CHECK",
+      "label": "Class A/B OC Test — divert if failing",
+      "indenture_section": "§13.1(5)",
+      "note_class": "CLASS_B",
+      "payment_type": "INTEREST",
+      "amount_basis": "ACCRUED_INTEREST",
+      "condition": {
+        "test_type": "OC",
+        "note_classes_tested": ["CLASS_A", "CLASS_B"],
+        "operator": "ALL_PASS"
+      },
+      "diverts_to": {
+        "step_type": "REINVESTMENT",
+        "note_class_priority": [],
+        "description": "Principal reinvestment account — cure Class A/B OC shortfall"
+      },
+      "cure_mechanism": "REINVESTMENT"
+    },
+    {
+      "step_id": "OC_CLASS_C_CHECK",
+      "step_number": 5,
+      "step_type": "COVERAGE_TEST_CHECK",
+      "label": "Class C OC Test — divert if failing",
+      "indenture_section": "§13.1(6)",
+      "note_class": "CLASS_C",
+      "payment_type": "INTEREST",
+      "amount_basis": "ACCRUED_INTEREST",
+      "condition": {
+        "test_type": "OC",
+        "note_classes_tested": ["CLASS_A", "CLASS_B", "CLASS_C"],
+        "operator": "ALL_PASS"
+      },
+      "diverts_to": {
+        "step_type": "REINVESTMENT",
+        "note_class_priority": [],
+        "description": "Principal reinvestment account — cure Class C OC shortfall"
+      },
+      "cure_mechanism": "REINVESTMENT"
+    },
+    {
+      "step_id": "SUB_MGMT_FEE",
+      "step_number": 6,
+      "step_type": "FEE",
+      "label": "Subordinate Management Fee",
+      "indenture_section": "§13.1(8)",
+      "beneficiary": "Carlyle Investment Management L.L.C.",
+      "payment_type": "FEE",
+      "amount_basis": "FIXED"
+    },
+    {
+      "step_id": "EQUITY_DIST",
+      "step_number": 7,
+      "step_type": "EQUITY_DISTRIBUTION",
+      "label": "Equity Distribution",
+      "indenture_section": "§13.1(10)",
+      "beneficiary": "Subordinated Noteholders",
+      "payment_type": "EQUITY_DISTRIBUTION",
+      "amount_basis": "REMAINING_PROCEEDS"
+    }
+  ],
+  "extraction_summary": {
+    "tests_found": 3,
+    "limits_found": 5,
+    "waterfall_steps_found": 7,
+    "overall_confidence": "HIGH",
+    "flags": []
+  }
+}

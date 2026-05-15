@@ -14,6 +14,8 @@ export interface CoverageTestResult {
   calculated_pct: number;
   threshold_pct:  number;
   result:         'PASS' | 'FAIL';
+  cushion_pct?:   number;
+  source_clause?: string;
 }
 
 export interface WaterfallCapitalStructure {

@@ -1,0 +1,148 @@
+id,obligor,industry,country,par,spread,rating,status,accrued_interest,loan_type
+L001,Acme Healthcare Partners,Healthcare,US,5.2,475,B,Current,0.065,SENIOR_SECURED
+L002,Acme Healthcare Partners,Healthcare,US,2.8,475,B,Current,0.035,SENIOR_SECURED
+L003,Bluestone Energy LLC,Oil & Gas,US,4.1,525,B-,Current,0.055,SENIOR_SECURED
+L004,Capital Retail Group,Retail,US,3.6,450,B,Current,0.045,SENIOR_SECURED
+L005,Capital Retail Group,Retail,US,1.9,450,B,Current,0.024,SECOND_LIEN
+L006,Dune Media Holdings,Media,US,4.8,500,B,Current,0.060,SENIOR_SECURED
+L007,Evergreen Software Inc,Technology,US,5.5,400,BB-,Current,0.069,SENIOR_SECURED
+L008,Evergreen Software Inc,Technology,US,3.2,400,BB-,Current,0.040,SENIOR_SECURED
+L009,Frontier Telecom Corp,Telecommunications,US,4.0,475,B+,Current,0.050,SENIOR_SECURED
+L010,Golden Gate Restaurant Group,Retail,US,3.3,600,CCC+,Current,0.042,SENIOR_SECURED
+L011,Harmon Auto Parts,Automotive,US,4.5,450,B,Current,0.056,SENIOR_SECURED
+L012,Imperial Chemical Industries,Chemicals,US,3.8,475,B,Current,0.048,SENIOR_SECURED
+L013,Jade Pharmaceuticals Ltd,Healthcare,US,5.0,425,BB-,Current,0.063,SENIOR_SECURED
+L014,Keystone Construction LLC,Construction,US,2.9,550,B-,Current,0.037,SENIOR_SECURED
+L015,Lakeside Logistics Group,Transportation,US,4.2,475,B,Current,0.053,SENIOR_SECURED
+L016,Meridian Gaming Corp,Hotels & Gaming,US,3.7,525,B-,Current,0.047,SENIOR_SECURED
+L017,Northfield Paper Inc,Forest Products,US,3.1,500,B,Current,0.039,SENIOR_SECURED
+L018,Oceanic Fisheries Ltd,Food & Beverages,US,2.6,550,B-,Current,0.033,SENIOR_SECURED
+L019,Pacific Coast Winery,Food & Beverages,US,3.4,475,B,Current,0.043,SENIOR_SECURED
+L020,Quantum Defense Systems,Aerospace & Defense,US,5.1,400,BB-,Current,0.064,SENIOR_SECURED
+L021,Ridgeline Mining Corp,Mining,US,4.4,525,B,Current,0.055,SENIOR_SECURED
+L022,Sterling Financial Group,Finance,US,3.0,450,B+,Current,0.038,SENIOR_SECURED
+L023,Titan Steel Corp,Steel,US,4.6,500,B-,Current,0.058,SENIOR_SECURED
+L024,United Packaging Solutions,Containers,US,3.5,475,B,Current,0.044,SENIOR_SECURED
+L025,Vanguard Printing Inc,Printing,US,2.4,600,CCC+,PIK,0.000,SENIOR_SECURED
+L026,Westfield Aerospace LLC,Aerospace & Defense,US,4.9,425,BB-,Current,0.061,SENIOR_SECURED
+L027,Xcel Energy Partners,Oil & Gas,US,3.9,500,B-,Current,0.049,SENIOR_SECURED
+L028,Yellowstone Timber Co,Forest Products,US,2.7,550,B,Current,0.034,SENIOR_SECURED
+L029,Zenith Plastics Corp,Chemicals,US,4.3,475,B,Current,0.054,SENIOR_SECURED
+L030,Alpine Restaurant Group,Retail,US,3.2,575,CCC,Current,0.041,SENIOR_SECURED
+L031,Bravo Construction Inc,Construction,US,2.8,550,B-,Current,0.035,SENIOR_SECURED
+L032,Cascade Medical Devices,Healthcare,US,4.7,425,BB-,Current,0.059,SENIOR_SECURED
+L033,Delta Airline Services,Aerospace & Defense,US,3.6,475,B,Current,0.045,SENIOR_SECURED
+L034,Echo Valley Farms,Food & Beverages,US,2.5,500,B-,Current,0.031,SENIOR_SECURED
+L035,Frontier Gaming Corp,Hotels & Gaming,US,4.1,525,B-,Current,0.052,SENIOR_SECURED
+L036,Galactic Software Ltd,Technology,US,5.3,400,BB-,Current,0.066,SENIOR_SECURED
+L037,Harbor Shipping Co,Transportation,US,3.8,475,B,Current,0.048,SENIOR_SECURED
+L038,Ironwood Publishing LLC,Media,US,2.9,500,B-,Current,0.036,SENIOR_SECURED
+L039,Jupiter Energy Corp,Oil & Gas,US,4.0,525,B,Current,0.050,SENIOR_SECURED
+L040,Kingston Paper Mills,Forest Products,US,3.3,550,B-,Current,0.042,SENIOR_SECURED
+L041,Lakeview Healthcare Partners,Healthcare,US,4.8,450,B,Current,0.060,SENIOR_SECURED
+L042,Mountain View Auto Group,Automotive,US,3.7,475,B,Current,0.046,SENIOR_SECURED
+L043,Nexus Telecom LLC,Telecommunications,US,4.2,475,B+,Current,0.053,SENIOR_SECURED
+L044,Orbit Aerospace Corp,Aerospace & Defense,US,5.0,400,BB-,Current,0.063,SENIOR_SECURED
+L045,Pacific Rim Chemicals,Chemicals,US,3.5,500,B,Current,0.044,SENIOR_SECURED
+L046,Quantum Steel Corp,Steel,US,4.4,525,B-,Current,0.055,SENIOR_SECURED
+L047,Riverside Energy LLC,Oil & Gas,US,3.9,500,B,Current,0.049,SENIOR_SECURED
+L048,Summit Construction LLC,Construction,US,2.6,575,CCC+,Current,0.033,SENIOR_SECURED
+L049,Transcontinental Media,Media,US,4.1,500,B-,Current,0.052,SENIOR_SECURED
+L050,United Steel Works,Steel,US,3.8,525,B,Current,0.048,SENIOR_SECURED
+L051,Valley Healthcare Inc,Healthcare,US,4.6,450,B+,Current,0.058,SENIOR_SECURED
+L052,Willow Creek Logistics,Transportation,US,3.4,475,B,Current,0.043,SENIOR_SECURED
+L053,Xenon Technology Corp,Technology,US,5.1,400,BB,Current,0.064,SENIOR_SECURED
+L054,York Financial Holdings,Finance,US,3.2,450,B+,Current,0.040,SENIOR_SECURED
+L055,Zephyr Wind Energy,Oil & Gas,CA,4.0,475,B,Current,0.050,SENIOR_SECURED
+L056,Atlas Retail Corp,Retail,US,2.8,600,CCC,PIK,0.000,SENIOR_SECURED
+L057,Beacon Mining Ltd,Mining,US,4.3,525,B,Current,0.054,SENIOR_SECURED
+L058,Citadel Pharma Corp,Healthcare,US,4.9,425,BB-,Current,0.061,SENIOR_SECURED
+L059,Dover Media Group,Media,US,3.1,500,B-,Current,0.039,SENIOR_SECURED
+L060,Emerald Energy Corp,Oil & Gas,US,4.5,500,B,Current,0.056,SENIOR_SECURED
+L061,Falcon Aerospace Ltd,Aerospace & Defense,US,3.8,425,BB-,Current,0.048,SENIOR_SECURED
+L062,Genesis Software Co,Technology,US,4.7,400,BB-,Current,0.059,SENIOR_SECURED
+L063,Highland Steel Inc,Steel,US,3.5,525,B-,Current,0.044,SENIOR_SECURED
+L064,Indigo Packaging Corp,Containers,US,2.9,475,B,Current,0.036,SENIOR_SECURED
+L065,Jade Construction Group,Construction,US,3.7,550,B-,Current,0.047,SENIOR_SECURED
+L066,Kelvin Chemical Corp,Chemicals,US,4.0,475,B,Current,0.050,SENIOR_SECURED
+L067,Lighthouse Telecom LLC,Telecommunications,US,4.4,475,B+,Current,0.055,SENIOR_SECURED
+L068,Maple Leaf Gaming Corp,Hotels & Gaming,CA,3.6,525,B-,Current,0.045,SENIOR_SECURED
+L069,Nordic Logistics Group,Transportation,US,3.3,475,B,Current,0.041,SENIOR_SECURED
+L070,Omega Healthcare Systems,Healthcare,US,5.2,450,B+,Current,0.065,SENIOR_SECURED
+L071,Pioneer Auto Parts,Automotive,US,3.9,475,B,Current,0.049,SENIOR_SECURED
+L072,Quest Mining Corp,Mining,US,4.2,525,B,Current,0.053,SENIOR_SECURED
+L073,Radius Technology Inc,Technology,US,4.8,400,BB,Current,0.060,SENIOR_SECURED
+L074,Skylark Media LLC,Media,US,3.0,500,B-,Current,0.038,SENIOR_SECURED
+L075,Titan Energy Corp,Oil & Gas,US,4.6,500,B,Current,0.058,SENIOR_SECURED
+L076,Urban Restaurant Group,Retail,US,2.7,575,CCC+,Current,0.034,SENIOR_SECURED
+L077,Vector Steel Corp,Steel,US,4.1,525,B-,Current,0.052,SENIOR_SECURED
+L078,Westgate Finance Ltd,Finance,US,3.5,450,B+,Current,0.044,SENIOR_SECURED
+L079,Xenith Healthcare Corp,Healthcare,US,4.3,450,B,Current,0.054,SENIOR_SECURED
+L080,Yale Pharma Inc,Healthcare,US,5.0,425,BB-,Current,0.063,SENIOR_SECURED
+L081,Zion Energy Partners,Oil & Gas,US,3.8,500,B-,Current,0.048,SENIOR_SECURED
+L082,Albion Construction LLC,Construction,US,2.5,550,B-,Current,0.031,SENIOR_SECURED
+L083,Briar Chemical Corp,Chemicals,US,4.0,475,B,Current,0.050,SECOND_LIEN
+L084,Cedar Media Group,Media,US,3.2,525,B-,Current,0.040,SENIOR_SECURED
+L085,Delphi Steel Works,Steel,US,4.4,525,B,Current,0.055,SENIOR_SECURED
+L086,Essex Logistics Inc,Transportation,US,3.7,475,B,Current,0.046,SENIOR_SECURED
+L087,Franklin Technology Corp,Technology,US,5.3,400,BB-,Current,0.066,SENIOR_SECURED
+L088,Garnet Healthcare LLC,Healthcare,US,4.1,450,B+,Current,0.051,SENIOR_SECURED
+L089,Hudson Energy Corp,Oil & Gas,US,4.6,500,B,Current,0.058,SENIOR_SECURED
+L090,Invictus Mining Ltd,Mining,US,3.4,525,B-,Current,0.043,SENIOR_SECURED
+L091,Jasper Pharma Corp,Healthcare,US,4.8,425,BB-,Current,0.060,SENIOR_SECURED
+L092,Kelvin Steel Inc,Steel,US,3.9,525,B-,Current,0.049,SENIOR_SECURED
+L093,Lincoln Retail Group,Retail,US,2.8,600,CCC,PIK,0.000,SENIOR_SECURED
+L094,Mercury Aerospace Corp,Aerospace & Defense,US,5.1,425,BB-,Current,0.064,SENIOR_SECURED
+L095,Nautilus Chemicals LLC,Chemicals,US,3.6,475,B,Current,0.045,SENIOR_SECURED
+L096,Onyx Technology Inc,Technology,US,4.7,400,BB,Current,0.059,SENIOR_SECURED
+L097,Prism Energy Corp,Oil & Gas,US,4.0,500,B,Current,0.050,SENIOR_SECURED
+L098,Quorum Finance LLC,Finance,US,3.3,450,B+,Current,0.041,SENIOR_SECURED
+L099,Redwood Construction Corp,Construction,US,2.7,575,CCC+,Current,0.034,SENIOR_SECURED
+L100,Sapphire Media Holdings,Media,US,4.2,500,B-,Current,0.053,SENIOR_SECURED
+L101,Timber Creek Logistics,Transportation,US,3.8,475,B,Current,0.048,SENIOR_SECURED
+L102,Ultratech Systems Inc,Technology,US,5.2,400,BB-,Current,0.065,SENIOR_SECURED
+L103,Vega Healthcare Corp,Healthcare,US,4.5,450,B,Current,0.056,SENIOR_SECURED
+L104,Waverly Steel Corp,Steel,US,4.1,525,B-,Current,0.052,SENIOR_SECURED
+L105,Xenon Energy Partners,Oil & Gas,US,3.7,500,B,Current,0.046,SENIOR_SECURED
+L106,Yellowfin Media LLC,Media,US,2.9,500,B-,Current,0.036,SENIOR_SECURED
+L107,Zara Retail Holdings,Retail,US,2.5,600,CCC,PIK,0.000,SENIOR_SECURED
+L108,Ashford Healthcare Inc,Healthcare,US,4.9,450,B+,Current,0.061,SENIOR_SECURED
+L109,Blackwater Energy Corp,Oil & Gas,US,4.3,525,B,Current,0.054,SENIOR_SECURED
+L110,Cobalt Steel Works,Steel,US,3.6,525,B-,Current,0.045,SENIOR_SECURED
+L111,Duplex Construction LLC,Construction,US,2.8,550,B-,Current,0.035,SENIOR_SECURED
+L112,Eagle Pharma Corp,Healthcare,US,5.0,425,BB-,Current,0.063,SENIOR_SECURED
+L113,Fortress Technology Inc,Technology,US,4.6,400,BB,Current,0.058,SECOND_LIEN
+L114,Global Logistics Corp,Transportation,US,4.0,475,B,Current,0.050,SENIOR_SECURED
+L115,Horizon Mining Ltd,Mining,US,3.5,525,B,Current,0.044,SENIOR_SECURED
+L116,Infinity Healthcare LLC,Healthcare,US,4.7,450,B,Current,0.059,SENIOR_SECURED
+L117,Juniper Steel Corp,Steel,US,4.2,525,B-,Current,0.053,SENIOR_SECURED
+L118,Kodiak Energy Corp,Oil & Gas,CA,3.9,500,B,Current,0.049,SENIOR_SECURED
+L119,Lancer Media Group,Media,US,3.1,500,B-,Current,0.039,SENIOR_SECURED
+L120,Maverick Construction Inc,Construction,US,2.6,575,CCC+,Current,0.033,SENIOR_SECURED
+L121,Nova Technology Corp,Technology,US,5.0,400,BB-,Current,0.063,SENIOR_SECURED
+L122,Oasis Energy Partners,Oil & Gas,US,4.1,500,B,Current,0.051,SENIOR_SECURED
+L123,Pinnacle Finance LLC,Finance,US,3.4,450,B+,Current,0.043,SENIOR_SECURED
+L124,Quasar Aerospace Corp,Aerospace & Defense,US,4.8,425,BB-,Current,0.060,SENIOR_SECURED
+L125,Redstone Chemicals Inc,Chemicals,US,3.7,475,B,Current,0.046,SENIOR_SECURED
+L126,Sequoia Healthcare Corp,Healthcare,US,4.4,450,B+,Current,0.055,SENIOR_SECURED
+L127,Thorium Steel Works,Steel,US,3.8,525,B-,Current,0.048,SENIOR_SECURED
+L128,Unicorn Technology Inc,Technology,US,5.1,400,BB,Current,0.064,SENIOR_SECURED
+L129,Vertex Energy Corp,Oil & Gas,US,4.2,500,B,Current,0.053,SENIOR_SECURED
+L130,Wildfire Logistics LLC,Transportation,US,3.6,475,B,Current,0.045,SENIOR_SECURED
+L131,Xtreme Gaming Corp,Hotels & Gaming,US,3.3,525,B-,Current,0.041,SENIOR_SECURED
+L132,Yankee Media Holdings,Media,US,2.8,500,B-,Current,0.035,SENIOR_SECURED
+L133,Zenith Energy Partners,Oil & Gas,US,4.0,500,B,Current,0.050,SENIOR_SECURED
+L134,Apex Construction LLC,Construction,US,2.5,550,B-,Current,0.031,SENIOR_SECURED
+L135,Borealis Chemical Corp,Chemicals,US,3.9,475,B,Current,0.049,SENIOR_SECURED
+L136,Crystal Steel Inc,Steel,US,4.3,525,B-,Current,0.054,SENIOR_SECURED
+L137,Diamond Healthcare Corp,Healthcare,US,4.6,450,B,Current,0.058,SENIOR_SECURED
+L138,Eclipse Technology Inc,Technology,US,4.9,400,BB-,Current,0.061,SENIOR_SECURED
+L139,Foxtrot Energy Corp,Oil & Gas,US,3.8,500,B,Current,0.048,SENIOR_SECURED
+L140,Granite Mining Corp,Mining,US,3.5,525,B,Current,0.044,SENIOR_SECURED
+L141,Helios Aerospace Corp,Aerospace & Defense,US,5.2,425,BB-,Current,0.065,SENIOR_SECURED
+L142,Ionic Finance LLC,Finance,US,3.1,450,B+,Current,0.039,SENIOR_SECURED
+L143,Jade Energy Corp,Oil & Gas,US,4.4,500,B-,Current,0.055,SENIOR_SECURED
+L144,Kestrel Technology Inc,Technology,US,4.8,400,BB,Current,0.060,SENIOR_SECURED
+L145,Lyric Healthcare Inc,Healthcare,US,4.1,450,B+,Current,0.051,SENIOR_SECURED
+L146,Magnet Steel Corp,Steel,US,3.7,525,B-,Current,0.046,SENIOR_SECURED
+L147,Neptune Logistics LLC,Transportation,US,3.4,475,B,Current,0.043,SENIOR_SECURED

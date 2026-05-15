@@ -1,0 +1,73 @@
+{
+  "coverageResults": [
+    {
+      "test_id": "OC_CLASS_AB",
+      "test_type": "OC",
+      "threshold": 137.06,
+      "actual": 141.23,
+      "cushion": 4.17,
+      "result": "PASS",
+      "indenture_section": "§11.1(a)"
+    },
+    {
+      "test_id": "OC_CLASS_C",
+      "test_type": "OC",
+      "threshold": 120.40,
+      "actual": 118.75,
+      "cushion": -1.65,
+      "result": "FAIL",
+      "indenture_section": "§11.1(b)"
+    },
+    {
+      "test_id": "IC_CLASS_AB",
+      "test_type": "IC",
+      "threshold": 120.00,
+      "actual": 132.40,
+      "cushion": 12.40,
+      "result": "PASS",
+      "indenture_section": "§11.2(a)"
+    }
+  ],
+  "concentrationResults": [
+    {
+      "limit_id": "SINGLE_OBLIGOR",
+      "description": "Maximum single-obligor concentration (including affiliates)",
+      "max_pct": 3.0,
+      "actual_pct": 2.86,
+      "headroom": 0.14,
+      "result": "PASS"
+    },
+    {
+      "limit_id": "SINGLE_INDUSTRY",
+      "description": "Single Moody's Industry Classification Group concentration",
+      "max_pct": 15.0,
+      "actual_pct": 17.82,
+      "headroom": -2.82,
+      "result": "FAIL"
+    },
+    {
+      "limit_id": "CCC_BUCKET",
+      "description": "CCC/Caa-rated or below bucket",
+      "max_pct": 7.5,
+      "actual_pct": 6.43,
+      "headroom": 1.07,
+      "result": "PASS"
+    },
+    {
+      "limit_id": "SECOND_LIEN",
+      "description": "Second Lien Loans concentration limit",
+      "max_pct": 10.0,
+      "actual_pct": 3.14,
+      "headroom": 6.86,
+      "result": "PASS"
+    },
+    {
+      "limit_id": "DIP_LOAN",
+      "description": "Debtor-in-possession loans",
+      "max_pct": 5.0,
+      "actual_pct": 0.0,
+      "headroom": 5.0,
+      "result": "PASS"
+    }
+  ]
+}

@@ -93,7 +93,7 @@ export function applyNoticeUpdate(
 
     for (const [field, newValue] of Object.entries(update.updates)) {
       if (newValue === undefined) continue;
-      const oldValue = (loan as Record<string, unknown>)[field];
+      const oldValue = (loan as unknown as Record<string, unknown>)[field];
       updatedLoan[field] = newValue;
       changeLog.push({
         loan_id:        loan.loan_id,
@@ -105,7 +105,7 @@ export function applyNoticeUpdate(
       });
     }
 
-    return updatedLoan as LoanPosition;
+    return updatedLoan as unknown as LoanPosition;
   });
 
   if (matchedIds.size > 0) {

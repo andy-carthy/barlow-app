@@ -1,0 +1,18 @@
+AGENT BANK NOTICE
+Date: January 6, 2026
+Reference: Bluestone Energy LLC — Term Loan B Rate Reset
+
+This notice is to confirm that the floating rate applicable to the Bluestone Energy LLC Term Loan B (Loan ID: L003) has been reset effective January 1, 2026. The applicable margin remains 525 basis points over SOFR. The new all-in rate, based on the current SOFR rate of 4.85%, is 10.35% per annum.
+
+Effective Date: 2026-01-01
+Borrower: Bluestone Energy LLC
+Facility: Term Loan B
+New Spread: 525 bps
+SOFR Base: 4.85%
+All-In Rate: 10.35%
+
+Please update your records accordingly.
+
+Signed,
+Wells Fargo Bank, N.A.
+Administrative Agent

@@ -1,4 +1,4 @@
-import type { WaterfallEngineInput } from '../../engines/waterfall_engine';
+import type { WaterfallEngineInput, CoverageTestResult } from '../../engines/waterfall_engine';
 import type { ConcentrationTestResult, ReportMeta } from '../../types/report';
 import type { NoteBalanceSnapshot } from '../../types/waterfall';
 import { FIXTURE_WATERFALL_STEPS_4B, FIXTURE_NOTE_BALANCES, FIXTURE_COLLECTIONS_NORMAL } from '../synthetic_waterfall/scenarios_4b';
@@ -16,16 +16,16 @@ export const REPORT_META_BARLOW: ReportMeta = {
 
 // ── Coverage test result sets ────────────────────────────────────────────────
 
-export const COVERAGE_TESTS_ALL_PASS = [
-  { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 150.21, threshold_pct: 123.50, result: 'PASS' as const, cushion_pct: 26.71, source_clause: '§11.1(a)(i)' },
-  { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct: 128.75, threshold_pct: 112.75, result: 'PASS' as const, cushion_pct: 16.00, source_clause: '§11.1(a)(ii)' },
-  { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 203.05, threshold_pct: 120.00, result: 'PASS' as const, cushion_pct: 83.05, source_clause: '§11.1(b)(i)' },
+export const COVERAGE_TESTS_ALL_PASS: CoverageTestResult[] = [
+  { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 150.21, threshold_pct: 123.50, result: 'PASS', cushion_pct: 26.71, source_clause: '§11.1(a)(i)' },
+  { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct: 128.75, threshold_pct: 112.75, result: 'PASS', cushion_pct: 16.00, source_clause: '§11.1(a)(ii)' },
+  { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 203.05, threshold_pct: 120.00, result: 'PASS', cushion_pct: 83.05, source_clause: '§11.1(b)(i)' },
 ];
 
-export const COVERAGE_TESTS_OC_AB_FAIL = [
-  { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 114.58, threshold_pct: 123.50, result: 'FAIL' as const, cushion_pct: -8.92, source_clause: '§11.1(a)(i)' },
-  { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct:  98.21, threshold_pct: 112.75, result: 'FAIL' as const, cushion_pct: -14.54, source_clause: '§11.1(a)(ii)' },
-  { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 203.05, threshold_pct: 120.00, result: 'PASS' as const, cushion_pct: 83.05, source_clause: '§11.1(b)(i)' },
+export const COVERAGE_TESTS_OC_AB_FAIL: CoverageTestResult[] = [
+  { test_id: 'OC_CLASS_AB', test_type: 'overcollateralization', calculated_pct: 114.58, threshold_pct: 123.50, result: 'FAIL', cushion_pct: -8.92, source_clause: '§11.1(a)(i)' },
+  { test_id: 'OC_CLASS_C',  test_type: 'overcollateralization', calculated_pct:  98.21, threshold_pct: 112.75, result: 'FAIL', cushion_pct: -14.54, source_clause: '§11.1(a)(ii)' },
+  { test_id: 'IC_CLASS_AB', test_type: 'interest_coverage',     calculated_pct: 203.05, threshold_pct: 120.00, result: 'PASS', cushion_pct: 83.05, source_clause: '§11.1(b)(i)' },
 ];
 
 // ── Concentration test result sets ───────────────────────────────────────────

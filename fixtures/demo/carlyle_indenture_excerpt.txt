@@ -1,0 +1,76 @@
+CARLYLE DIRECT LENDING CLO 2024-1, LTD.
+INDENTURE dated as of February 28, 2024
+
+SECTION 11.1 — OVERCOLLATERALIZATION TESTS
+
+(a) Class A/B Overcollateralization Test. On each Measurement Date, the Trustee shall
+calculate the Class A/B Overcollateralization Ratio by dividing (i) the Adjusted
+Collateral Principal Amount by (ii) the aggregate outstanding principal balance of
+the Class A Notes and the Class B Notes. The Class A/B Overcollateralization Ratio
+shall be required to be equal to or greater than 137.06% (the "Class A/B OC
+Threshold"). If on any Measurement Date the Class A/B Overcollateralization Ratio
+is less than the Class A/B OC Threshold, then the Priority of Payments shall be
+modified as described in Section 11.3. Cure: redirect interest proceeds to principal
+reinvestment account until the Class A/B OC Threshold is restored.
+
+(b) Class C Overcollateralization Test. On each Measurement Date, the Trustee shall
+calculate the Class C Overcollateralization Ratio by dividing (i) the Adjusted
+Collateral Principal Amount by (ii) the aggregate outstanding principal balance of
+the Class A Notes, Class B Notes, and Class C Notes. The Class C Overcollateralization
+Ratio shall be required to be equal to or greater than 120.40% (the "Class C OC
+Threshold"). If the Class C OC Threshold is not satisfied, interest proceeds shall
+be diverted as set forth in Section 11.1(b). Cure: principal reinvestment or pro rata
+paydown of Notes in reverse order of seniority.
+
+SECTION 11.2 — INTEREST COVERAGE TEST
+
+(a) Class A/B Interest Coverage Test. On each Measurement Date, the Trustee shall
+calculate the Class A/B Interest Coverage Ratio by dividing (i) the Interest Proceeds
+received during the related Interest Accrual Period by (ii) the sum of (A) accrued
+and unpaid interest on the Class A Notes, (B) accrued and unpaid interest on the
+Class B Notes, and (C) the Senior Management Fee. The Class A/B Interest Coverage
+Ratio shall be required to be equal to or greater than 120.00% (the "Class A/B IC
+Threshold"). Failure to satisfy this test shall redirect Interest Proceeds per
+Section 13.1(b).
+
+SECTION 12.2 — CONCENTRATION LIMITATIONS
+
+The following Concentration Limitations shall apply to the Collateral Obligations:
+
+(a) Single Obligor Limit. The aggregate Principal Balance of Collateral Obligations
+issued by any single Obligor (together with its Affiliates) shall not exceed 3.00%
+of the Adjusted Collateral Principal Amount.
+
+(b) Single Industry Limit. The aggregate Principal Balance of Collateral Obligations
+in any single Moody's Industry Classification Group shall not exceed 15.00% of the
+Adjusted Collateral Principal Amount; provided, however, that the largest industry
+may represent up to 20.00% and the second-largest up to 17.00%.
+
+(c) CCC/Caa Bucket. The aggregate Principal Balance of Collateral Obligations rated
+CCC+/Caa1 or below shall not exceed 7.50% of the Adjusted Collateral Principal Amount.
+Defaulted Obligations shall be treated as CCC/Caa-rated regardless of nominal rating.
+
+(d) Second Lien Limit. The aggregate Principal Balance of Second Lien Loans shall not
+exceed 10.00% of the Adjusted Collateral Principal Amount.
+
+(e) DIP Loan Limit. The aggregate Principal Balance of Debtor-in-Possession Loans
+shall not exceed 5.00% of the Adjusted Collateral Principal Amount.
+
+SECTION 13.1 — PRIORITY OF PAYMENTS
+
+On each Payment Date, the Trustee shall apply Interest Proceeds in the following order
+of priority:
+
+Step 1:  Trustee and Administrative Expenses, not to exceed $250,000 per annum.
+Step 2:  Senior Management Fee to Carlyle Investment Management L.L.C.
+Step 3:  Hedge payments to Hedge Counterparties (excluding termination payments).
+Step 4:  Accrued and unpaid interest on the Class A Notes.
+Step 5:  Accrued and unpaid interest on the Class B Notes — provided the Class A/B
+         OC Test is satisfied; otherwise redirect to Step 9.
+Step 6:  Accrued and unpaid interest on the Class C Notes — provided the Class C
+         OC Test is satisfied; otherwise redirect to Step 9.
+Step 7:  Accrued and unpaid interest on the Class D Notes.
+Step 8:  Subordinate Management Fee to Carlyle Investment Management L.L.C.
+Step 9:  Reinvestment/cure — principal reinvestment account or pro rata paydown of
+         Notes in reverse order of seniority until all OC Tests are cured.
+Step 10: Equity Distribution to the Subordinated Notes and Certificates.

@@ -1,0 +1,145 @@
+{
+  "allocationLedger": {
+    "collections": {
+      "payment_date": "2026-01-15",
+      "period_start": "2025-10-15",
+      "period_end": "2026-01-15",
+      "total_interest_proceeds": 2.1875,
+      "total_principal_proceeds": 8.43,
+      "scheduled_interest": 2.1875,
+      "unscheduled_interest": 0,
+      "default_interest_recovered": 0,
+      "scheduled_principal": 8.43,
+      "unscheduled_principal": 0,
+      "default_principal_recovered": 0,
+      "hedge_receipts": 0,
+      "reserve_account_balance": 0
+    },
+    "total_interest_allocated": 2.1875,
+    "total_principal_allocated": 0,
+    "total_allocated": 2.1875,
+    "entries": [
+      {
+        "step_id": "TRUSTEE_FEES",
+        "step_number": 1,
+        "step_type": "FEE",
+        "beneficiary": "Wilmington Trust, N.A.",
+        "payment_type": "FEE",
+        "amount_due": 0.125,
+        "amount_paid": 0.125,
+        "shortfall": 0,
+        "proceeds_bucket_before": 2.1875,
+        "proceeds_bucket_after": 2.0625,
+        "blocked": false,
+        "indenture_section": "§13.1(1)"
+      },
+      {
+        "step_id": "SR_MGMT_FEE",
+        "step_number": 2,
+        "step_type": "FEE",
+        "beneficiary": "Carlyle Investment Management L.L.C.",
+        "payment_type": "FEE",
+        "amount_due": 0.25,
+        "amount_paid": 0.25,
+        "shortfall": 0,
+        "proceeds_bucket_before": 2.0625,
+        "proceeds_bucket_after": 1.8125,
+        "blocked": false,
+        "indenture_section": "§13.1(2)"
+      },
+      {
+        "step_id": "CLASS_A_INTEREST",
+        "step_number": 3,
+        "step_type": "INTEREST_PAYMENT",
+        "beneficiary": "Class A Noteholders",
+        "note_class": "CLASS_A",
+        "payment_type": "INTEREST",
+        "amount_due": 0.925,
+        "amount_paid": 0.925,
+        "shortfall": 0,
+        "proceeds_bucket_before": 1.8125,
+        "proceeds_bucket_after": 0.8875,
+        "blocked": false,
+        "indenture_section": "§13.1(4)"
+      },
+      {
+        "step_id": "OC_CLASS_AB_CHECK",
+        "step_number": 4,
+        "step_type": "COVERAGE_TEST_CHECK",
+        "beneficiary": "Principal Reinvestment Account",
+        "note_class": "CLASS_B",
+        "payment_type": "INTEREST",
+        "amount_due": 0.225,
+        "amount_paid": 0.225,
+        "shortfall": 0,
+        "proceeds_bucket_before": 0.8875,
+        "proceeds_bucket_after": 0.6625,
+        "blocked": false,
+        "indenture_section": "§13.1(5)"
+      },
+      {
+        "step_id": "OC_CLASS_C_CHECK",
+        "step_number": 5,
+        "step_type": "COVERAGE_TEST_CHECK",
+        "beneficiary": "Principal Reinvestment Account — OC Cure",
+        "note_class": "CLASS_C",
+        "payment_type": "INTEREST",
+        "amount_due": 0.175,
+        "amount_paid": 0.6625,
+        "shortfall": 0,
+        "proceeds_bucket_before": 0.6625,
+        "proceeds_bucket_after": 0,
+        "blocked": false,
+        "indenture_section": "§13.1(6)"
+      },
+      {
+        "step_id": "SUB_MGMT_FEE",
+        "step_number": 6,
+        "step_type": "FEE",
+        "beneficiary": "Carlyle Investment Management L.L.C.",
+        "payment_type": "FEE",
+        "amount_due": 0.15,
+        "amount_paid": 0,
+        "shortfall": 0.15,
+        "proceeds_bucket_before": 0,
+        "proceeds_bucket_after": 0,
+        "blocked": true,
+        "indenture_section": "§13.1(8)"
+      },
+      {
+        "step_id": "EQUITY_DIST",
+        "step_number": 7,
+        "step_type": "EQUITY_DISTRIBUTION",
+        "beneficiary": "Subordinated Noteholders",
+        "payment_type": "EQUITY_DISTRIBUTION",
+        "amount_due": 0,
+        "amount_paid": 0,
+        "shortfall": 0,
+        "proceeds_bucket_before": 0,
+        "proceeds_bucket_after": 0,
+        "blocked": true,
+        "indenture_section": "§13.1(10)"
+      }
+    ]
+  },
+  "diversionLedger": {
+    "period_start": "2025-10-15",
+    "period_end": "2026-01-15",
+    "payment_date": "2026-01-15",
+    "total_diverted": 0.6625,
+    "entries": [
+      {
+        "step_id": "OC_CLASS_C_CHECK",
+        "step_number": 5,
+        "triggering_test": "OC_CLASS_C",
+        "diversion_amount": 0.6625,
+        "cure_mechanism": "REINVESTMENT",
+        "diversion_target": {
+          "step_type": "REINVESTMENT",
+          "note_class_priority": [],
+          "description": "Principal reinvestment account — cure Class C OC shortfall"
+        }
+      }
+    ]
+  }
+}

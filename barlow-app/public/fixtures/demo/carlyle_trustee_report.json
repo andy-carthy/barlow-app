@@ -1,0 +1,113 @@
+{
+  "deal_name": "Carlyle Direct Lending CLO 2024-1, Ltd.",
+  "report_type": "PAYMENT_DATE_REPORT",
+  "payment_date": "2026-01-15",
+  "period_start": "2025-10-15",
+  "period_end": "2026-01-15",
+  "trustee": "Wilmington Trust, N.A.",
+  "collateral_manager": "Carlyle Investment Management L.L.C.",
+  "deal_cik": "N/A",
+  "generated_at": "2026-01-15T12:00:00.000Z",
+  "generated_by": "BARLOW_5A",
+  "note_balance_statement": {
+    "entries": [
+      { "note_class": "CLASS_A", "balance_prior": 180.0, "balance_current": 180.0, "principal_paid": 0, "note_rate": 0.0650, "interest_paid": 0.925 },
+      { "note_class": "CLASS_B", "balance_prior": 60.0,  "balance_current": 60.0,  "principal_paid": 0, "note_rate": 0.0750, "interest_paid": 0.225 },
+      { "note_class": "CLASS_C", "balance_prior": 40.0,  "balance_current": 40.0,  "principal_paid": 0, "note_rate": 0.0875, "interest_paid": 0.0 }
+    ]
+  },
+  "coverage_test_summary": {
+    "entries": [
+      { "test_id": "OC_CLASS_AB", "test_type": "OC", "indenture_section": "§11.1(a)", "threshold": 137.06, "actual": 141.23, "cushion": 4.17, "result": "PASS" },
+      { "test_id": "OC_CLASS_C",  "test_type": "OC", "indenture_section": "§11.1(b)", "threshold": 120.40, "actual": 118.75, "cushion": -1.65, "result": "FAIL" },
+      { "test_id": "IC_CLASS_AB", "test_type": "IC", "indenture_section": "§11.2(a)", "threshold": 120.00, "actual": 132.40, "cushion": 12.40, "result": "PASS" }
+    ]
+  },
+  "concentration_limit_summary": {
+    "entries": [
+      { "limit_id": "SINGLE_OBLIGOR",  "description": "Maximum single-obligor concentration", "max_pct": 3.0,  "actual_pct": 2.86,  "headroom": 0.14,  "result": "PASS" },
+      { "limit_id": "SINGLE_INDUSTRY", "description": "Single industry concentration",         "max_pct": 15.0, "actual_pct": 17.82, "headroom": -2.82, "result": "FAIL" },
+      { "limit_id": "CCC_BUCKET",      "description": "CCC/Caa-rated or below bucket",         "max_pct": 7.5,  "actual_pct": 6.43,  "headroom": 1.07,  "result": "PASS" },
+      { "limit_id": "SECOND_LIEN",     "description": "Second Lien Loans",                      "max_pct": 10.0, "actual_pct": 3.14,  "headroom": 6.86,  "result": "PASS" },
+      { "limit_id": "DIP_LOAN",        "description": "DIP Loans",                              "max_pct": 5.0,  "actual_pct": 0.0,   "headroom": 5.0,   "result": "PASS" }
+    ]
+  },
+  "waterfall_allocation_table": {
+    "total_interest_proceeds": 2.1875,
+    "total_principal_proceeds": 8.43,
+    "total_allocated": 2.1875,
+    "entries": [
+      { "step_id": "TRUSTEE_FEES",      "step_number": 1, "step_type": "FEE",                "beneficiary": "Wilmington Trust, N.A.",                      "payment_type": "FEE",              "amount_due": 0.125, "amount_paid": 0.125, "shortfall": 0,     "blocked": false, "indenture_section": "§13.1(1)" },
+      { "step_id": "SR_MGMT_FEE",       "step_number": 2, "step_type": "FEE",                "beneficiary": "Carlyle Investment Management L.L.C.",        "payment_type": "FEE",              "amount_due": 0.25,  "amount_paid": 0.25,  "shortfall": 0,     "blocked": false, "indenture_section": "§13.1(2)" },
+      { "step_id": "CLASS_A_INTEREST",  "step_number": 3, "step_type": "INTEREST_PAYMENT",   "beneficiary": "Class A Noteholders",    "note_class": "CLASS_A", "payment_type": "INTEREST",         "amount_due": 0.925, "amount_paid": 0.925, "shortfall": 0,     "blocked": false, "indenture_section": "§13.1(4)" },
+      { "step_id": "OC_CLASS_AB_CHECK", "step_number": 4, "step_type": "COVERAGE_TEST_CHECK","beneficiary": "Class B Noteholders",    "note_class": "CLASS_B", "payment_type": "INTEREST",         "amount_due": 0.225, "amount_paid": 0.225, "shortfall": 0,     "blocked": false, "indenture_section": "§13.1(5)" },
+      { "step_id": "OC_CLASS_C_CHECK",  "step_number": 5, "step_type": "COVERAGE_TEST_CHECK","beneficiary": "Principal Reinvestment Account", "note_class": "CLASS_C", "payment_type": "INTEREST", "amount_due": 0.175, "amount_paid": 0.6625,"shortfall": 0,     "blocked": false, "indenture_section": "§13.1(6)" },
+      { "step_id": "SUB_MGMT_FEE",      "step_number": 6, "step_type": "FEE",                "beneficiary": "Carlyle Investment Management L.L.C.",        "payment_type": "FEE",              "amount_due": 0.15,  "amount_paid": 0,     "shortfall": 0.15,  "blocked": true,  "indenture_section": "§13.1(8)" },
+      { "step_id": "EQUITY_DIST",       "step_number": 7, "step_type": "EQUITY_DISTRIBUTION","beneficiary": "Subordinated Noteholders",                    "payment_type": "EQUITY_DISTRIBUTION","amount_due": 0,    "amount_paid": 0,     "shortfall": 0,     "blocked": true,  "indenture_section": "§13.1(10)" }
+    ]
+  },
+  "interest_distribution": {
+    "period_start": "2025-10-15",
+    "period_end": "2026-01-15",
+    "entries": [
+      { "note_class": "CLASS_A", "days_accrued": 92, "accrual_rate": 0.0650, "interest_due": 0.925, "interest_paid": 0.925, "shortfall": 0, "blocked": false },
+      { "note_class": "CLASS_B", "days_accrued": 92, "accrual_rate": 0.0750, "interest_due": 0.225, "interest_paid": 0.225, "shortfall": 0, "blocked": false },
+      { "note_class": "CLASS_C", "days_accrued": 92, "accrual_rate": 0.0875, "interest_due": 0.175, "interest_paid": 0.0,   "shortfall": 0.175, "blocked": true }
+    ]
+  },
+  "principal_distribution": {
+    "entries": [
+      { "note_class": "CLASS_A", "principal_paid": 0, "redemption_type": "NONE" },
+      { "note_class": "CLASS_B", "principal_paid": 0, "redemption_type": "NONE" },
+      { "note_class": "CLASS_C", "principal_paid": 0, "redemption_type": "NONE" }
+    ],
+    "total_principal_distributed": 0
+  },
+  "portfolio_characteristics": {
+    "report_date": "2026-01-15",
+    "loan_count": 147,
+    "total_par": 560.5,
+    "weighted_avg_spread": 484,
+    "weighted_avg_life": 3.8,
+    "weighted_avg_rating_factor": 2650,
+    "diversity_score": 42.5,
+    "ccc_pct": 6.43,
+    "floating_rate_pct": 98.2,
+    "top_10_obligor_pct": 18.7
+  },
+  "diversion_summary": {
+    "total_diverted": 0.6625,
+    "entries": [
+      {
+        "step_number": 5,
+        "triggering_test": "OC_CLASS_C",
+        "diversion_amount": 0.6625,
+        "cure_mechanism": "REINVESTMENT"
+      }
+    ]
+  },
+  "exception_register": {
+    "as_of_date": "2026-01-15",
+    "entries": [
+      {
+        "exception_id": "EXC_2026Q1_OC_CLASS_C",
+        "exception_type": "OC_BREACH",
+        "description": "OC_CLASS_C Overcollateralization Test FAIL — 118.75% vs 120.40% threshold",
+        "indenture_section": "§11.1(b)",
+        "breach_depth": 1.65,
+        "diversion_triggered": true,
+        "diversion_amount": 0.6625
+      },
+      {
+        "exception_id": "EXC_2026Q1_SINGLE_INDUSTRY",
+        "exception_type": "CONCENTRATION_BREACH",
+        "description": "SINGLE_INDUSTRY Concentration Limit FAIL — 17.82% vs 15.00% maximum",
+        "indenture_section": "§12.2(b)",
+        "breach_depth": 2.82,
+        "diversion_triggered": false,
+        "diversion_amount": null
+      }
+    ]
+  },
+  "exception_narratives": null
+}

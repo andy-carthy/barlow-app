@@ -1,5 +1,18 @@
 {
+  "scripts": {
+    "server": "npx tsx server/index.ts",
+    "dev": "cd barlow-app && npm start"
+  },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.95.0"
+    "@anthropic-ai/sdk": "^0.95.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "multer": "^2.1.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^20.0.0"
   }
 }

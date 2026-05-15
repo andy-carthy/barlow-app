@@ -1,0 +1,18 @@
+[
+  {
+    "exception_id": "EXC_2026Q1_OC_CLASS_C",
+    "narrative": "As of the January 15, 2026 Payment Date, the Class C Overcollateralization Test, as set forth in §11.1(b) of the Indenture, was not satisfied. The Class C Overcollateralization Ratio was calculated at 118.75%, which is below the required threshold of 120.40%, representing a shortfall of 1.65%. Pursuant to Section 13.1 of the Indenture, interest proceeds otherwise distributable to the Class C Noteholders and subordinate beneficiaries were redirected to the principal reinvestment account in the amount of $662,500 to cure the shortfall. The Subordinate Management Fee and Equity Distribution were blocked for this Payment Period.",
+    "generated_by": "BARLOW_5B",
+    "prompt_version": "5B.1",
+    "model": "claude-sonnet-4-6",
+    "word_count": 98
+  },
+  {
+    "exception_id": "EXC_2026Q1_SINGLE_INDUSTRY",
+    "narrative": "As of the January 15, 2026 Payment Date, the Single Industry Concentration Limit, as set forth in §12.2(b) of the Indenture, was exceeded. The Healthcare industry represented 17.82% of the Adjusted Collateral Principal Amount, which is above the general maximum permitted concentration of 15.00%, representing an excess of 2.82%. This breach does not constitute a coverage test failure and does not trigger a waterfall diversion; however, it is reported in the Exception Register in accordance with the reporting obligations of the Indenture. No new Healthcare collateral obligations may be acquired until the concentration is restored below the applicable limit.",
+    "generated_by": "BARLOW_5B",
+    "prompt_version": "5B.1",
+    "model": "claude-sonnet-4-6",
+    "word_count": 108
+  }
+]

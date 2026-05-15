@@ -1,0 +1,21 @@
+PAYDOWN NOTICE
+Date: January 8, 2026
+Reference: Evergreen Software Inc — Voluntary Prepayment
+
+Notice is hereby given that Evergreen Software Inc. (the "Borrower") has elected to voluntarily prepay a portion of the outstanding principal under the Term Loan A facility.
+
+Borrower: Evergreen Software Inc.
+Loan IDs: L007, L008
+Prepayment Amount: $1,200,000 ($0.8M from L007, $0.4M from L008)
+Effective Date: 2026-01-10
+Prepayment Premium: None (prepayment permitted without premium per credit agreement)
+
+Following this prepayment, the outstanding principal balances will be:
+  L007: $4,700,000
+  L008: $2,800,000
+
+Please update your records to reflect the revised principal balances.
+
+Signed,
+JPMorgan Chase Bank, N.A.
+Administrative Agent
