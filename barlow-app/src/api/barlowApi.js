@@ -2,13 +2,15 @@
 // All functions return Promise<{ data: T | null, error: string | null }>.
 // Fixture fallback: pass useFallback=true to skip the server and load pre-computed data.
 
-const BASE = '';  // CRA proxy routes /api/* to localhost:3001
+const BASE = 'http://localhost:3001';
 
-async function post(path, body) {
+async function post(path, body, apiKey) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['X-Anthropic-Key'] = apiKey;
   const res = await fetch(`${BASE}${path}`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
+    method: 'POST',
+    headers,
+    body:   JSON.stringify(body),
   });
   if (!res.ok) return { data: null, error: `HTTP ${res.status}` };
   return res.json();
@@ -22,7 +24,7 @@ async function loadFixture(name) {
 
 // ── Phase 1 — Extraction ──────────────────────────────────────────────────────
 
-export async function extract(text, { useFallback = false } = {}) {
+export async function extract(text, { useFallback = false, apiKey } = {}) {
   if (useFallback) {
     try {
       const data = await loadFixture('carlyle_extraction_output.json');
@@ -31,7 +33,7 @@ export async function extract(text, { useFallback = false } = {}) {
       return { data: null, error: e.message };
     }
   }
-  return post('/api/extract', { text });
+  return post('/api/extract', { text }, apiKey);
 }
 
 // ── Phase 2A — Tape Ingestion ─────────────────────────────────────────────────
@@ -104,6 +106,33 @@ export async function assembleReport(payload, { useFallback = false } = {}) {
     }
   }
   return post('/api/assemble-report', payload);
+}
+
+// ── Deals API (Phase 7) ───────────────────────────────────────────────────────
+
+export async function getDeals() {
+  const res = await fetch(`${BASE}/api/deals`);
+  if (!res.ok) return { data: null, error: `HTTP ${res.status}` };
+  return res.json();
+}
+
+export async function createDeal(payload) {
+  return post('/api/deals', payload);
+}
+
+export async function deleteDeal(dealId) {
+  const res = await fetch(`${BASE}/api/deals/${dealId}`, { method: 'DELETE' });
+  if (!res.ok) return { data: null, error: `HTTP ${res.status}` };
+  return res.json();
+}
+
+export async function activateDeal(dealId) {
+  const res = await fetch(`${BASE}/api/deals/${dealId}/activate`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) return { data: null, error: `HTTP ${res.status}` };
+  return res.json();
 }
 
 // ── Phase 5B — Narrative Generation (SSE streaming) ──────────────────────────
