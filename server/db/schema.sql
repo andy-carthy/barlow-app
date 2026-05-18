@@ -9,8 +9,10 @@ CREATE TABLE IF NOT EXISTS deals (
   compliance_run    TEXT,   -- JSON blob
   waterfall         TEXT,   -- JSON blob
   trustee_report    TEXT,   -- JSON blob
-  is_active    INTEGER NOT NULL DEFAULT 0,
-  loaded_at    TEXT
+  is_active         INTEGER NOT NULL DEFAULT 0,
+  loaded_at         TEXT,
+  register_version  INTEGER NOT NULL DEFAULT 1,
+  last_cleared_at   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS exceptions (
