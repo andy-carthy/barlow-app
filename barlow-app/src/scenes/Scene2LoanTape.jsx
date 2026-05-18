@@ -1,10 +1,13 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useBarlowDemo } from '../context/BarlowDemoContext';
 import { ingestTape, processNotice } from '../api/barlowApi';
+import SceneToolbar, { tbBtn } from '../components/SceneToolbar';
 
 export default function Scene2LoanTape() {
   const { state, patch, setScene } = useBarlowDemo();
-  const { loanTape, indenture } = state;
+  const { loanTape } = state;
+
+  useEffect(() => { document.title = 'Barlow — Loan Tape'; }, []);
 
   const [tapeDragOver, setTapeDragOver]     = useState(false);
   const [noticeDragOver, setNoticeDragOver] = useState(false);
@@ -60,7 +63,19 @@ export default function Scene2LoanTape() {
   const summary = loanTape.summary;
   const changeLog = loanTape.changeLog ?? [];
 
+  const toolbarRight = (
+    <button
+      style={{ ...tbBtn, opacity: loanTape.status !== 'COMPLETE' ? 0.5 : 1 }}
+      disabled={loanTape.status !== 'COMPLETE'}
+      onClick={() => setScene(2)}
+    >
+      Run Coverage Tests →
+    </button>
+  );
+
   return (
+    <div>
+      <SceneToolbar stepNum={2} title="Loan Tape" back={() => setScene(0)} backLabel="Deal Onboarding" right={toolbarRight} />
     <div style={s.layout}>
       {/* ── Left panel ── */}
       <div style={s.left}>
@@ -75,7 +90,8 @@ export default function Scene2LoanTape() {
         >
           <div style={s.dropText}>Drop CSV / TSV loan tape</div>
           <div style={s.dropSub}>or click to browse</div>
-          <input ref={tapeRef} type="file" accept=".csv,.tsv,.txt" style={{ display: 'none' }}
+          <input ref={tapeRef} type="file" accept=".csv,.tsv,.txt"
+            style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
             onChange={e => handleTapeFile(e.target.files[0])} />
         </div>
 
@@ -100,7 +116,8 @@ export default function Scene2LoanTape() {
             onClick={() => noticeRef.current?.click()}
           >
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Drop .txt notice files or click to add</span>
-            <input ref={noticeRef} type="file" accept=".txt" multiple style={{ display: 'none' }}
+            <input ref={noticeRef} type="file" accept=".txt" multiple
+              style={{ position: 'absolute', width: 1, height: 1, opacity: 0, pointerEvents: 'none' }}
               onChange={e => [...e.target.files].forEach(addNoticeFile)} />
           </div>
 
@@ -121,15 +138,6 @@ export default function Scene2LoanTape() {
           )}
         </div>
 
-        <div style={{ marginTop: 24 }}>
-          <button
-            style={{ ...s.btnPrimary, opacity: loanTape.status !== 'COMPLETE' ? 0.5 : 1 }}
-            disabled={loanTape.status !== 'COMPLETE'}
-            onClick={() => setScene(2)}
-          >
-            Run Coverage Tests →
-          </button>
-        </div>
       </div>
 
       {/* ── Right panel ── */}
@@ -137,19 +145,21 @@ export default function Scene2LoanTape() {
         {summary ? (
           <>
             <h3 style={s.subheading}>Tape Summary</h3>
-            <div style={s.summaryGrid}>
-              <SummaryRow label="Positions"          value={summary.position_count?.toLocaleString()} />
-              <SummaryRow label="Total Par"          value={`$${(summary.total_par).toFixed(1)}M`} />
-              <SummaryRow label="Senior Secured"     value={`${summary.senior_secured_pct?.toFixed(1)}%`} />
-              <SummaryRow label="Second Lien"        value={`${summary.second_lien_pct?.toFixed(1)}%`} />
-              <SummaryRow label="Other"              value={`${summary.other_pct?.toFixed(1)}%`} />
-              <SummaryRow label="Rating Coverage"    value={`${summary.rating_coverage_pct?.toFixed(1)}%`} />
+            <div style={s.summaryCards}>
+              <StatCard label="Positions"       value={summary.position_count?.toLocaleString()} />
+              <StatCard label="Total Par"       value={`$${summary.total_par?.toFixed(1)}M`} />
+              <StatCard label="Senior Secured"  value={`${summary.senior_secured_pct?.toFixed(1)}%`} />
+              <StatCard label="Second Lien"     value={`${summary.second_lien_pct?.toFixed(1)}%`} />
+              <StatCard label="Other"           value={`${summary.other_pct?.toFixed(1)}%`} />
+              <StatCard label="Rating Coverage" value={`${summary.rating_coverage_pct?.toFixed(1)}%`} />
             </div>
-            {summary.validation_errors?.length > 0 && (
+            {summary.validation_errors?.length > 0 ? (
               <div style={s.warnBox}>
                 <strong>Validation warnings:</strong>
-                {summary.validation_errors.map((e, i) => <div key={i} style={{ fontSize: 12, marginTop: 4 }}>{e}</div>)}
+                {summary.validation_errors.map((e, i) => <div key={i} style={{ fontSize: 12, marginTop: 4 }}>{e.loan_id}: {e.field} — {e.message}</div>)}
               </div>
+            ) : (
+              <div style={s.validBanner}>✓ Tape valid — no warnings</div>
             )}
           </>
         ) : (
@@ -190,21 +200,29 @@ export default function Scene2LoanTape() {
         )}
       </div>
     </div>
+    </div>
   );
 }
 
-function SummaryRow({ label, value }) {
+function StatCard({ label, value }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--color-border)' }}>
-      <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>{label}</span>
-      <span style={{ fontWeight: 600, fontSize: 13 }}>{value}</span>
+    <div style={{ padding: '12px 14px', border: '1px solid var(--color-border)', borderRadius: 8, background: 'var(--color-surface)' }}>
+      <div style={{ fontSize: 32, fontWeight: 700, lineHeight: 1, color: 'var(--color-text-primary)', marginBottom: 5 }}>{value}</div>
+      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
     </div>
   );
 }
 
 function StatusBadge({ status }) {
-  const colors = { PENDING: '#999', RUNNING: 'var(--color-dusty-blue)', COMPLETE: 'var(--color-pass)', ERROR: 'var(--color-fail)' };
-  return <span style={{ fontSize: 11, color: colors[status] ?? '#999', fontWeight: 600 }}>{status}</span>;
+  const labels = { PENDING: 'PENDING', RUNNING: 'PROCESSING', COMPLETE: 'EXTRACTED', ERROR: 'ERROR' };
+  const colors = { PENDING: '#888', RUNNING: 'var(--color-dusty-blue)', COMPLETE: 'var(--color-pass)', ERROR: 'var(--color-fail)' };
+  const bgs    = { PENDING: '#f0f0ee', RUNNING: '#e8f0f7', COMPLETE: 'var(--color-pass-tint)', ERROR: 'var(--color-fail-tint)' };
+  return (
+    <span style={{ fontSize: 10, color: colors[status] ?? '#888', fontWeight: 700, padding: '2px 7px',
+                   background: bgs[status] ?? '#f0f0ee', borderRadius: 4, letterSpacing: '0.04em' }}>
+      {labels[status] ?? status}
+    </span>
+  );
 }
 
 function Th({ children }) {
@@ -234,7 +252,8 @@ const s = {
   errorBox:    { marginTop: 10, padding: '10px 12px', background: 'var(--color-fail-tint)', border: '1px solid var(--color-fail-border)', borderRadius: 6 },
   errorMsg:    { color: 'var(--color-fail)', fontSize: 13, marginBottom: 6 },
   warnBox:     { marginTop: 10, padding: '10px 12px', background: 'var(--color-flag-tint)', border: '1px solid var(--color-flag-border)', borderRadius: 6, fontSize: 13 },
-  summaryGrid: { borderTop: '1px solid var(--color-border)' },
+  summaryCards: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 },
+  validBanner:  { padding: '8px 14px', background: 'var(--color-pass-tint)', border: '1px solid var(--color-pass-border)', borderRadius: 6, fontSize: 13, color: 'var(--color-pass)', fontWeight: 600 },
   table:       { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   emptyRight:  { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 180, color: 'var(--color-text-muted)', gap: 10, textAlign: 'center', fontSize: 14 },
 };

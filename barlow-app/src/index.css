@@ -17,6 +17,28 @@
   --color-fail-border:  #c9a0a0;
   --color-flag-tint:    #f5edd8;
   --color-flag-border:  #d4b976;
+
+  /* Phase 7 — Exception Management palette (muted, desaturated) */
+  --status-breach:        #B85C4A;
+  --status-breach-bg:     #F5EAE7;
+  --status-warning:       #8A7340;
+  --status-warning-bg:    #F5F0E3;
+  --status-watch:         #5C7A6B;
+  --status-watch-bg:      #E8F0EC;
+  --status-resolved:      #4A6B4E;
+  --status-resolved-bg:   #E5EDE6;
+  --status-waived:        #5E5E7A;
+  --status-waived-bg:     #ECEDF5;
+  --status-open:          #6B5E4A;
+  --status-open-bg:       #F0EBE3;
+  --status-review:        #3d6652;
+  --status-review-bg:     #E8F0EC;
+  --cushion-negative:     #B85C4A;
+  --cushion-positive:     #4A6B4E;
+  --font-mono:            'IBM Plex Mono', monospace;
+  --brand-primary:        #4A6B5E;
+  --brand-light:          #6B9080;
+  --brand-subtle:         #C8D9D3;
 }
 
 *,

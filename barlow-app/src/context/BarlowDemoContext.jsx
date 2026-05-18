@@ -47,7 +47,8 @@ function makeDeal(overrides = {}) {
 
 const BarlowDemoContext = createContext(null);
 
-const _initial = makeDeal({ name: 'Carlyle DL CLO 2024-1', is_active: true });
+// Fixed ID matches the seed data in server/db/seeds/carlyle.js
+const _initial = makeDeal({ id: 'carlyle-2024-1', name: 'Carlyle DL CLO 2024-1', is_active: true });
 
 export function BarlowDemoProvider({ children }) {
   const [deals, setDeals] = useState([_initial]);

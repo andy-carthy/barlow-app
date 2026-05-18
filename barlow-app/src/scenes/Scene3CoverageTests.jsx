@@ -1,10 +1,13 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useBarlowDemo } from '../context/BarlowDemoContext';
 import { runTests } from '../api/barlowApi';
+import SceneToolbar, { tbBtn } from '../components/SceneToolbar';
 
 export default function Scene3CoverageTests() {
   const { state, patch, setScene } = useBarlowDemo();
   const { coverageTests, indenture, loanTape } = state;
+
+  useEffect(() => { document.title = 'Barlow — Coverage Tests'; }, []);
 
   useEffect(() => {
     if (coverageTests.status === 'IDLE' && indenture.extractionOutput) {
@@ -31,6 +34,8 @@ export default function Scene3CoverageTests() {
     });
   }
 
+  const [showOnlyFails, setShowOnlyFails] = useState(false);
+
   const { results, concentrationResults } = coverageTests;
   const isRunning = coverageTests.status === 'RUNNING';
   const isError   = coverageTests.status === 'ERROR';
@@ -39,8 +44,19 @@ export default function Scene3CoverageTests() {
   const concentrationFails = (concentrationResults ?? []).filter(r => r.result === 'FAIL').length;
   const anyFail            = coverageFails + concentrationFails > 0;
 
+  const toolbarRight = (
+    <button
+      style={{ ...tbBtn, opacity: coverageTests.status !== 'COMPLETE' ? 0.5 : 1 }}
+      disabled={coverageTests.status !== 'COMPLETE'}
+      onClick={() => setScene(3)}
+    >
+      Run Waterfall →
+    </button>
+  );
+
   return (
     <div>
+      <SceneToolbar stepNum={3} title="Coverage Tests" back={() => setScene(1)} backLabel="Loan Tape" right={toolbarRight} />
       {isRunning && (
         <div style={s.runningBanner}>
           <Spinner /> Running coverage tests…
@@ -67,10 +83,16 @@ export default function Scene3CoverageTests() {
         <section style={{ marginBottom: 32 }}>
           <div style={s.sectionHeader}>
             <h2 style={s.sectionTitle}>OC / IC Coverage Tests</h2>
-            <span style={s.summaryPill}>
-              <span style={{ color: 'var(--color-pass)' }}>{results.filter(r=>r.result==='PASS').length} passing</span>
-              {coverageFails > 0 && <> · <span style={{ color: 'var(--color-fail)' }}>{coverageFails} failing</span></>}
-            </span>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'baseline' }}>
+              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--color-pass)', lineHeight: 1 }}>
+                {results.filter(r => r.result === 'PASS').length}
+                <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 5, letterSpacing: '0.06em' }}>PASSING</span>
+              </span>
+              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--color-fail)', lineHeight: 1 }}>
+                {coverageFails}
+                <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 5, letterSpacing: '0.06em' }}>FAILING</span>
+              </span>
+            </div>
           </div>
           <table style={s.table}>
             <thead><tr>
@@ -80,13 +102,13 @@ export default function Scene3CoverageTests() {
               {results.map(r => {
                 const fail = r.result === 'FAIL';
                 return (
-                  <tr key={r.test_id} style={fail ? { background: 'var(--color-fail-tint)' } : {}}>
+                  <tr key={r.test_id} style={fail ? { background: 'var(--color-fail-tint)' } : { boxShadow: 'inset 3px 0 0 var(--color-pass)' }}>
                     <Td><code>{r.test_id}</code></Td>
-                    <Td style={{ color: 'var(--color-dusty-blue)' }}>{r.indenture_section ?? '—'}</Td>
-                    <Td>{r.threshold?.toFixed(2)}%</Td>
-                    <Td>{r.actual?.toFixed(2)}%</Td>
-                    <Td style={{ color: r.cushion >= 0 ? 'var(--color-pass)' : 'var(--color-fail)', fontWeight: 600 }}>
-                      {r.cushion >= 0 ? '+' : ''}{r.cushion?.toFixed(2)}%
+                    <Td style={{ color: 'var(--color-dusty-blue)' }}>{r.source_clause ?? '—'}</Td>
+                    <Td>{r.threshold_pct?.toFixed(2)}%</Td>
+                    <Td>{r.calculated_pct?.toFixed(2)}%</Td>
+                    <Td style={{ color: (r.cushion_pct ?? r.calculated_pct - r.threshold_pct) >= 0 ? 'var(--color-pass)' : 'var(--color-fail)', fontWeight: 600 }}>
+                      {(r.cushion_pct ?? 0) >= 0 ? '+' : ''}{r.cushion_pct?.toFixed(2)}%
                     </Td>
                     <Td>
                       <span style={fail ? s.badgeFail : s.badgePass}>
@@ -105,10 +127,21 @@ export default function Scene3CoverageTests() {
         <section style={{ marginBottom: 32 }}>
           <div style={s.sectionHeader}>
             <h2 style={s.sectionTitle}>Concentration Limits</h2>
-            <span style={s.summaryPill}>
-              <span style={{ color: 'var(--color-pass)' }}>{concentrationResults.filter(r=>r.result==='PASS').length} passing</span>
-              {concentrationFails > 0 && <> · <span style={{ color: 'var(--color-fail)' }}>{concentrationFails} failing</span></>}
-            </span>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'baseline' }}>
+              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--color-pass)', lineHeight: 1 }}>
+                {concentrationResults.filter(r => r.result === 'PASS').length}
+                <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 5, letterSpacing: '0.06em' }}>PASSING</span>
+              </span>
+              <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--color-fail)', lineHeight: 1 }}>
+                {concentrationFails}
+                <span style={{ fontSize: 11, fontWeight: 600, marginLeft: 5, letterSpacing: '0.06em' }}>FAILING</span>
+              </span>
+              {concentrationResults.length > 15 && (
+                <button style={s.toggleBtn} onClick={() => setShowOnlyFails(v => !v)}>
+                  {showOnlyFails ? 'Show all' : 'Show failures only'}
+                </button>
+              )}
+            </div>
           </div>
           <div style={{ maxHeight: 400, overflowY: 'auto' }}>
             <table style={s.table}>
@@ -116,10 +149,10 @@ export default function Scene3CoverageTests() {
                 <Th>Limit</Th><Th>Applies To</Th><Th>Max %</Th><Th>Actual %</Th><Th>Headroom</Th><Th>Result</Th>
               </tr></thead>
               <tbody>
-                {concentrationResults.map(r => {
+                {(showOnlyFails ? concentrationResults.filter(r => r.result === 'FAIL') : concentrationResults).map(r => {
                   const fail = r.result === 'FAIL';
                   return (
-                    <tr key={r.limit_id} style={fail ? { background: 'var(--color-fail-tint)' } : {}}>
+                    <tr key={r.limit_id} style={fail ? { background: 'var(--color-fail-tint)' } : { boxShadow: 'inset 3px 0 0 var(--color-pass)' }}>
                       <Td><code style={{ fontSize: 11 }}>{r.limit_id}</code></Td>
                       <Td style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{r.description}</Td>
                       <Td>{r.max_pct?.toFixed(2)}%</Td>
@@ -141,16 +174,6 @@ export default function Scene3CoverageTests() {
         </section>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-        <button style={s.btnBack} onClick={() => setScene(1)}>← Back to Loan Tape</button>
-        <button
-          style={s.btnPrimary}
-          disabled={coverageTests.status !== 'COMPLETE'}
-          onClick={() => setScene(3)}
-        >
-          Run Waterfall →
-        </button>
-      </div>
     </div>
   );
 }
@@ -173,6 +196,7 @@ const s = {
   sectionHeader: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 },
   sectionTitle:  { margin: 0, fontSize: 15, fontWeight: 700 },
   summaryPill:   { fontSize: 13, color: 'var(--color-text-muted)' },
+  toggleBtn:     { padding: '3px 10px', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 4, cursor: 'pointer', fontSize: 11, color: 'var(--color-text-muted)' },
   table:         { width: '100%', borderCollapse: 'collapse' },
   badgePass:     { padding: '2px 8px', background: 'var(--color-pass-tint)', color: 'var(--color-pass)', borderRadius: 4, fontSize: 12, fontWeight: 700 },
   badgeFail:     { padding: '2px 8px', background: 'var(--color-fail-tint)', color: 'var(--color-fail)', borderRadius: 4, fontSize: 12, fontWeight: 700 },

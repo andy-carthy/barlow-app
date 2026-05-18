@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useBarlowDemo } from '../context/BarlowDemoContext';
 import { assembleReport, generateNarratives } from '../api/barlowApi';
+import SceneToolbar from '../components/SceneToolbar';
 
 const SECTIONS = [
   { key: 'header',                label: 'Deal Header' },
@@ -24,7 +25,32 @@ export default function Scene5Report() {
   const [narrativeMap, setNarrativeMap]     = useState({});
   const [narrativeTokens, setNarrativeTokens] = useState({});
   const [timings, setTimings]               = useState({});
+  const [scrollPct, setScrollPct]           = useState(0);
   const assembledAt = useRef(null);
+  const centerRef   = useRef(null);
+
+  useEffect(() => { document.title = 'Barlow — Trustee Report'; }, []);
+
+  useEffect(() => {
+    const el = centerRef.current;
+    if (!el) return;
+    let scrollEl = el.parentElement;
+    while (scrollEl && scrollEl !== document.documentElement) {
+      const { overflowY } = window.getComputedStyle(scrollEl);
+      if (overflowY === 'auto' || overflowY === 'scroll') break;
+      scrollEl = scrollEl.parentElement;
+    }
+    if (!scrollEl) return;
+    const onScroll = () => {
+      const rect = el.getBoundingClientRect();
+      const total = el.offsetHeight - scrollEl.clientHeight;
+      const scrolled = Math.max(0, -rect.top + scrollEl.getBoundingClientRect().top);
+      setScrollPct(total > 0 ? Math.min(1, scrolled / total) : 0);
+    };
+    scrollEl.addEventListener('scroll', onScroll, { passive: true });
+    return () => scrollEl.removeEventListener('scroll', onScroll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (reportState.status === 'IDLE' && indenture.extractionOutput) {
@@ -107,13 +133,79 @@ export default function Scene5Report() {
   const hasDiversion  = (r?.diversion_summary?.entries?.length ?? 0) > 0;
   const narStatus     = reportState.narrativeStatus;
 
-  function downloadMarkdown() {
-    const md = reportState.markdown ?? '';
-    const blob = new Blob([md], { type: 'text/markdown' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = 'trustee_report.md'; a.click();
-    URL.revokeObjectURL(url);
+  function downloadPdf() {
+    if (!r) return;
+    const noteRows = (r.note_balance_statement?.entries ?? []).map(e => `
+      <tr>
+        <td>${e.note_class?.replace('CLASS_', 'Class ')}</td>
+        <td>${fmtM(e.balance_prior)}</td>
+        <td>${e.principal_paid > 0 ? fmtM(e.principal_paid) : '—'}</td>
+        <td>${fmtM(e.balance_current)}</td>
+        <td>${((e.note_rate ?? 0) * 100).toFixed(2)}%</td>
+        <td>${fmtM(e.interest_paid)}</td>
+      </tr>`).join('');
+    const covRows = (r.coverage_test_summary?.entries ?? []).map(e => `
+      <tr${e.result === 'FAIL' ? ' class="fail-row"' : ''}>
+        <td><code>${e.test_id}</code></td>
+        <td>${fmt(e.threshold)}%</td>
+        <td>${fmt(e.actual)}%</td>
+        <td style="color:${(e.cushion ?? 0) >= 0 ? '#4a7c59' : '#a05252'}">${(e.cushion ?? 0) >= 0 ? '+' : ''}${fmt(e.cushion)}%</td>
+        <td><strong>${e.result}</strong></td>
+      </tr>`).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>${r.deal_name} — Trustee Report</title>
+<style>
+  body{font-family:'Times New Roman',serif;font-size:10pt;margin:0;color:#000}
+  .page{padding:.9in;box-sizing:border-box}
+  .cover{min-height:10in;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  h1{font-size:22pt;margin:0 0 8px}
+  h2{font-size:13pt;font-weight:normal;color:#555;margin:0 0 28px}
+  .draft{font-size:13pt;font-weight:bold;color:#c00;border:2px solid #c00;padding:8px 24px;letter-spacing:.1em;display:inline-block}
+  .meta{margin-top:32px;font-size:11pt;line-height:2.2}
+  .gen{margin-top:48px;font-size:8pt;color:#999}
+  .sec-title{font-size:12pt;font-weight:bold;border-bottom:1.5px solid #000;margin:20px 0 10px;padding-bottom:4px}
+  table{width:100%;border-collapse:collapse;font-size:9pt;margin-bottom:12px}
+  th{background:#f0f0f0;text-align:left;padding:4px 8px;border:1px solid #ccc}
+  td{padding:3px 8px;border:1px solid #ccc}
+  .fail-row td{background:#efe0e0}
+  .footer{margin-top:24px;font-size:8pt;color:#888;text-align:center;border-top:1px solid #ccc;padding-top:8px}
+  @media print{
+    @page{margin:.75in;size:letter}
+    .page-break{page-break-after:always}
+    body::after{content:"DRAFT — Controller Review Required";position:fixed;top:50%;left:50%;
+      transform:translate(-50%,-50%) rotate(-45deg);font-size:64pt;
+      color:rgba(180,0,0,.07);pointer-events:none;z-index:9999;white-space:nowrap;
+      font-family:'Times New Roman',serif;font-weight:bold}
+  }
+</style></head><body>
+<div class="page cover page-break">
+  <h1>${r.deal_name}</h1>
+  <h2>Payment Date Report</h2>
+  <div class="draft">DRAFT — CONTROLLER REVIEW REQUIRED</div>
+  <div class="meta">
+    <div><strong>Payment Date:</strong> ${r.payment_date}</div>
+    <div><strong>Period:</strong> ${r.period_start} — ${r.period_end}</div>
+    <div><strong>Trustee:</strong> ${r.trustee}</div>
+    <div><strong>Collateral Manager:</strong> ${r.collateral_manager}</div>
+  </div>
+  <div class="gen">Generated by Barlow v0.5 · ${assembledAt.current?.slice(0, 10) ?? ''} · Not for distribution</div>
+</div>
+<div class="page">
+  <div class="sec-title">1. Note Balance Statement</div>
+  <table><thead><tr><th>Note Class</th><th>Prior Balance</th><th>Principal Paid</th><th>Current Balance</th><th>Rate</th><th>Interest Paid</th></tr></thead>
+  <tbody>${noteRows}</tbody></table>
+  <div class="sec-title">2. Coverage Test Summary</div>
+  <table><thead><tr><th>Test</th><th>Threshold</th><th>Actual</th><th>Cushion</th><th>Result</th></tr></thead>
+  <tbody>${covRows}</tbody></table>
+  <div class="footer">Barlow v0.5 — DRAFT. Controller review required before distribution. Not legally binding.</div>
+</div>
+</body></html>`;
+    const w = window.open('', '_blank', 'width=900,height=700');
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    setTimeout(() => { w.print(); }, 600);
   }
 
   function downloadJson() {
@@ -125,7 +217,17 @@ export default function Scene5Report() {
     URL.revokeObjectURL(url);
   }
 
+  const toolbarRight = isComplete ? (
+    <>
+      <button style={s.toolBtn} onClick={downloadPdf}>⬇ PDF</button>
+      <button style={s.toolBtn} onClick={downloadJson}>⬇ JSON</button>
+      <button style={s.toolBtn} onClick={() => navigator.clipboard?.writeText(reportState.markdown ?? '')}>⎘ Copy</button>
+    </>
+  ) : null;
+
   return (
+    <div>
+      <SceneToolbar stepNum={5} title="Trustee Report" back={() => setScene(3)} backLabel="Waterfall" right={toolbarRight} />
     <div style={s.layout}>
       {/* ── Left — Section nav ── */}
       <div style={s.nav}>
@@ -155,7 +257,8 @@ export default function Scene5Report() {
       </div>
 
       {/* ── Center — Report content ── */}
-      <div style={s.center}>
+      <div ref={centerRef} style={s.center}>
+        <div style={s.progressTrack}><div style={{ ...s.progressFill, width: `${scrollPct * 100}%` }} /></div>
         {isRunning && (
           <div style={s.loadingState}><Spinner /> Assembling report…</div>
         )}
@@ -172,13 +275,6 @@ export default function Scene5Report() {
 
         {isComplete && r && (
           <>
-            {/* Toolbar */}
-            <div style={s.toolbar}>
-              <button style={s.toolBtn} onClick={downloadMarkdown}>⬇ Markdown</button>
-              <button style={s.toolBtn} onClick={downloadJson}>⬇ JSON</button>
-              <button style={s.toolBtn} onClick={() => navigator.clipboard?.writeText(reportState.markdown ?? '')}>⎘ Copy</button>
-            </div>
-
             {/* Header */}
             <div id="section-header" style={s.reportSection}>
               <h1 style={{ fontSize: 20, margin: '0 0 4px' }}>{r.deal_name}</h1>
@@ -203,7 +299,7 @@ export default function Scene5Report() {
                       <Td>{fmtM(e.balance_prior)}</Td>
                       <Td>{e.principal_paid > 0 ? fmtM(e.principal_paid) : '—'}</Td>
                       <Td>{fmtM(e.balance_current)}</Td>
-                      <Td>{(e.note_rate * 100).toFixed(2)}%</Td>
+                      <Td>{fmt(e.note_rate != null ? e.note_rate * 100 : null)}%</Td>
                       <Td>{fmtM(e.interest_paid)}</Td>
                     </tr>
                   ))}
@@ -221,9 +317,9 @@ export default function Scene5Report() {
                     <tr key={e.test_id} style={e.result==='FAIL' ? { background: 'var(--color-fail-tint)' } : {}}>
                       <Td><code>{e.test_id}</code></Td>
                       <Td style={{ color: 'var(--color-dusty-blue)' }}>{e.indenture_section ?? '—'}</Td>
-                      <Td>{e.threshold?.toFixed(2)}%</Td>
-                      <Td>{e.actual?.toFixed(2)}%</Td>
-                      <Td style={{ color: e.cushion >= 0 ? 'var(--color-pass)' : 'var(--color-fail)', fontWeight: 600 }}>{e.cushion >= 0 ? '+' : ''}{e.cushion?.toFixed(2)}%</Td>
+                      <Td>{fmt(e.threshold)}%</Td>
+                      <Td>{fmt(e.actual)}%</Td>
+                      <Td style={{ color: (e.cushion ?? 0) >= 0 ? 'var(--color-pass)' : 'var(--color-fail)', fontWeight: 600 }}>{(e.cushion ?? 0) >= 0 ? '+' : ''}{fmt(e.cushion)}%</Td>
                       <Td><span style={e.result === 'PASS' ? s.badgePass : s.badgeFail}>{e.result === 'PASS' ? '✓ PASS' : '✗ FAIL'}</span></Td>
                     </tr>
                   ))}
@@ -241,9 +337,9 @@ export default function Scene5Report() {
                     <tr key={e.limit_id} style={e.result==='FAIL' ? { background: 'var(--color-fail-tint)' } : {}}>
                       <Td><code style={{ fontSize: 11 }}>{e.limit_id}</code></Td>
                       <Td style={{ fontSize: 12 }}>{e.description}</Td>
-                      <Td>{e.max_pct?.toFixed(2)}%</Td>
-                      <Td>{e.actual_pct?.toFixed(2)}%</Td>
-                      <Td style={{ color: e.headroom >= 0 ? 'var(--color-pass)' : 'var(--color-fail)', fontWeight: 600 }}>{e.headroom >= 0 ? '+' : ''}{e.headroom?.toFixed(2)}%</Td>
+                      <Td>{fmt(e.max_pct)}%</Td>
+                      <Td>{fmt(e.actual_pct)}%</Td>
+                      <Td style={{ color: (e.headroom ?? 0) >= 0 ? 'var(--color-pass)' : 'var(--color-fail)', fontWeight: 600 }}>{(e.headroom ?? 0) >= 0 ? '+' : ''}{fmt(e.headroom)}%</Td>
                       <Td><span style={e.result === 'PASS' ? s.badgePass : s.badgeFail}>{e.result === 'PASS' ? '✓ PASS' : '✗ FAIL'}</span></Td>
                     </tr>
                   ))}
@@ -284,7 +380,7 @@ export default function Scene5Report() {
                         <Td><code style={{ fontSize: 11 }}>{e.exception_id}</code></Td>
                         <Td>{e.exception_type}</Td>
                         <Td style={{ color: 'var(--color-dusty-blue)' }}>{e.indenture_section ?? '—'}</Td>
-                        <Td style={{ color: 'var(--color-fail)', fontWeight: 600 }}>{e.breach_depth?.toFixed(2)}%</Td>
+                        <Td style={{ color: 'var(--color-fail)', fontWeight: 600 }}>{fmt(e.breach_depth)}%</Td>
                       </tr>
                     ))}
                   </tbody>
@@ -380,19 +476,19 @@ export default function Scene5Report() {
           </>
         )}
 
-        <div style={{ marginTop: 24 }}>
-          <button style={s.btnBack} onClick={() => setScene(3)}>← Back to Waterfall</button>
-        </div>
       </div>
+    </div>
     </div>
   );
 }
 
 function buildNoteBalances() {
   return {
-    class_a: { par: 180.0, coupon_rate: 0.0650, accrued_interest: 2.925, deferred_interest: 0 },
-    class_b: { par: 60.0,  coupon_rate: 0.0750, accrued_interest: 1.125, deferred_interest: 0 },
-    class_c: { par: 40.0,  coupon_rate: 0.0875, accrued_interest: 0.875, deferred_interest: 0 },
+    class_a: { outstanding_balance: 180.0, accrued_interest: 2.925, deferred_interest: 0 },
+    class_b: { outstanding_balance:  60.0, accrued_interest: 1.125, deferred_interest: 0 },
+    class_c: { outstanding_balance:  40.0, accrued_interest: 0.875, deferred_interest: 0 },
+    class_d: { outstanding_balance:  20.0, accrued_interest: 0.525, deferred_interest: 0 },
+    preferred_interests: { outstanding_balance: 25.0, accrued_interest: 0, deferred_interest: 0 },
     fees: { trustee_and_admin: 0.125, senior_management_fee: 0.250, subordinate_management_fee: 0.150 },
   };
 }
@@ -406,6 +502,10 @@ function buildReportMeta() {
     collateral_manager: 'Carlyle',
     deal_cik:           'N/A',
   };
+}
+
+function fmt(n, decimals = 2) {
+  return (n != null && !isNaN(n)) ? n.toFixed(decimals) : '—';
 }
 
 function fmtM(v) {
@@ -429,7 +529,7 @@ function TimingRow({ label, ms }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
       <span style={{ color: 'var(--color-text-muted)' }}>{label}</span>
-      <span style={{ fontWeight: 600 }}>{(ms / 1000).toFixed(1)}s</span>
+      <span style={{ fontWeight: 600 }}>{ms >= 100 ? `${(ms / 1000).toFixed(1)}s` : '< 0.1s'}</span>
     </div>
   );
 }
@@ -451,6 +551,8 @@ const s = {
   nav:            { width: 200, flexShrink: 0, borderRight: '1px solid var(--color-border)', paddingRight: 12 },
   navItem:        { display: 'flex', alignItems: 'center', width: '100%', textAlign: 'left', padding: '7px 10px', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12, marginBottom: 2 },
   center:         { flex: 1, minWidth: 0 },
+  progressTrack:  { height: 2, background: 'var(--color-border)', marginBottom: 10, borderRadius: 1 },
+  progressFill:   { height: '100%', background: 'var(--color-dusty-blue)', transition: 'width 0.1s', borderRadius: 1 },
   meta:           { width: 200, flexShrink: 0, borderLeft: '1px solid var(--color-border)', paddingLeft: 16 },
   metaBlock:      { padding: '10px 0', borderBottom: '1px solid var(--color-border)' },
   metaTitle:      { fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-muted)', marginBottom: 8 },
