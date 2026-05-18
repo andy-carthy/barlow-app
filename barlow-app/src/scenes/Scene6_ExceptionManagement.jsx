@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import RegisterTab from '../components/exceptions/RegisterTab';
+import ReviewQueueTab from '../components/exceptions/ReviewQueueTab';
 
 const TABS = [
   { id: 'register', label: 'Register' },
@@ -43,7 +44,7 @@ export default function Scene6ExceptionManagement() {
       {/* Tab content */}
       <div style={s.content}>
         {activeTab === 'register' && <RegisterTab />}
-        {activeTab === 'review'   && <PlaceholderTab label="Review Queue" />}
+        {activeTab === 'review'   && <ReviewQueueTab />}
         {activeTab === 'audit'    && <PlaceholderTab label="Audit Trail" />}
         {activeTab === 'deals'    && <PlaceholderTab label="Deal Switcher" />}
       </div>
