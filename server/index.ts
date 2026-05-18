@@ -8,6 +8,7 @@ import { runWaterfallRoute } from './routes/runWaterfall';
 import { assembleReportRoute } from './routes/assembleReport';
 import { generateNarrativesRoute } from './routes/generateNarratives';
 import { exceptionsRouter } from './routes/exceptions';
+import { dealsRouter } from './routes/deals';
 
 const app = express();
 const PORT = 3001;
@@ -24,6 +25,7 @@ app.post('/api/assemble-report', assembleReportRoute);
 app.post('/api/generate-narratives', generateNarrativesRoute);
 
 app.use('/api/exceptions', exceptionsRouter);
+app.use('/api/deals', dealsRouter);
 
 app.listen(PORT, () => {
   console.log(`\n  Barlow API server running on http://localhost:${PORT}`);
